@@ -8,6 +8,10 @@ from runner import LATEST_STATUS, execute_ping, execute_scrape, mongo_client
 
 app = FastAPI(title="Server Automation Keep-Alive Dashboard")
 
+from fastapi.staticfiles import StaticFiles
+
+app.mount("/public", StaticFiles(directory="public"), name="public")
+
 @app.get("/api/status")
 def get_status():
     """Return the cached in-memory status of all configured services."""

@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 from pymongo import MongoClient, ASCENDING
 from zoneinfo import ZoneInfo
 from config import MONGO_URI, SERVICES_CONFIG
-from servers.server2.stock_scraper_service import scrape_stocks
+from servers.stock_scraper_service import scrape_stocks
 
 # Global in-memory dictionary to store the latest health status of each service
 LATEST_STATUS = {}

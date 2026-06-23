@@ -81,5 +81,5 @@ if ENABLE_STOCK_SCRAPER:
         "collection_name": "Stocks",
         "allowed_hours_ist": (9, 16),  # Mon-Fri 9:30 AM to 4:00 PM IST (represented roughly as 9-16 hour block)
         "allowed_days": [0, 1, 2, 3, 4],  # Mon-Fri
-        "ticker_file_path": "servers/server2/IndianStockTicker.json"
+        "ticker_file_path": "servers/IndianStockTicker.json"
     })
