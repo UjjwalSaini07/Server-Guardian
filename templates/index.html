@@ -1,0 +1,1120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Server Keep-Alive & Performance Engine</title>
+  <link rel="icon" type="image/png" href="/public/logo.png">
+  <!-- Google Fonts: Outfit & Space Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Space+Mono:wght@400;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            outfit: ['Outfit', 'sans-serif'],
+            mono: ['Space Mono', 'monospace'],
+          },
+          colors: {
+            obsidian: '#030303',
+            glassCard: 'rgba(10, 10, 12, 0.65)',
+            glassBorder: 'rgba(255, 255, 255, 0.05)',
+            neonIndigo: '#6366f1',
+            neonPink: '#d946ef',
+            neonGreen: '#10b981',
+            neonOrange: '#f59e0b',
+            neonRed: '#f43f5e',
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    body {
+      background-color: #020204;
+      background-image: 
+        radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.12) 0px, transparent 50%),
+        radial-gradient(at 100% 0%, rgba(217, 70, 239, 0.1) 0px, transparent 50%),
+        radial-gradient(at 50% 100%, rgba(16, 185, 129, 0.05) 0px, transparent 50%);
+      min-height: 100vh;
+      color: #f8fafc;
+      overflow-x: hidden;
+    }
+    
+    .glass-panel {
+      background: rgba(10, 10, 12, 0.55);
+      backdrop-filter: blur(24px) saturate(190%);
+      -webkit-backdrop-filter: blur(24px) saturate(190%);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.6);
+    }
+    
+    .glass-card {
+      background: rgba(13, 13, 16, 0.7);
+      backdrop-filter: blur(20px) saturate(180%);
+      -webkit-backdrop-filter: blur(20px) saturate(180%);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      box-shadow: 0 10px 30px 0 rgba(0, 0, 0, 0.5);
+      transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    
+    .glass-card:hover {
+      border-color: rgba(255, 255, 255, 0.12);
+      transform: translateY(-4px) scale(1.01);
+      box-shadow: 0 20px 40px 0 rgba(99, 102, 241, 0.12);
+    }
+
+    .neon-glow-success:hover {
+      box-shadow: 0 20px 40px 0 rgba(16, 185, 129, 0.12);
+    }
+    .neon-glow-error:hover {
+      box-shadow: 0 20px 40px 0 rgba(244, 63, 94, 0.12);
+    }
+    .neon-glow-warn:hover {
+      box-shadow: 0 20px 40px 0 rgba(245, 158, 11, 0.12);
+    }
+
+    /* Terminal Styling */
+    .terminal-window {
+      background: rgba(5, 5, 8, 0.85);
+      border: 1px solid rgba(99, 102, 241, 0.15);
+      box-shadow: 0 15px 35px 0 rgba(0, 0, 0, 0.7);
+    }
+
+    .terminal-scrollbar::-webkit-scrollbar {
+      width: 4px;
+    }
+    .terminal-scrollbar::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.02);
+    }
+    .terminal-scrollbar::-webkit-scrollbar-thumb {
+      background: rgba(99, 102, 241, 0.3);
+      border-radius: 999px;
+    }
+
+    /* Pulse effects */
+    .pulse-online {
+      box-shadow: 0 0 12px rgba(16, 185, 129, 0.6);
+      animation: pulseGreen 2.2s infinite;
+    }
+    .pulse-offline {
+      box-shadow: 0 0 12px rgba(244, 63, 94, 0.6);
+      animation: pulseRed 2.2s infinite;
+    }
+    .pulse-warn {
+      box-shadow: 0 0 12px rgba(245, 158, 11, 0.6);
+      animation: pulseOrange 2.2s infinite;
+    }
+
+    @keyframes pulseGreen {
+      0%, 100% { transform: scale(1); opacity: 1; box-shadow: 0 0 12px rgba(16, 185, 129, 0.6); }
+      50% { transform: scale(1.15); opacity: 0.75; box-shadow: 0 0 20px rgba(16, 185, 129, 0.8); }
+    }
+    @keyframes pulseRed {
+      0%, 100% { transform: scale(1); opacity: 1; box-shadow: 0 0 12px rgba(244, 63, 94, 0.6); }
+      50% { transform: scale(1.15); opacity: 0.75; box-shadow: 0 0 20px rgba(244, 63, 94, 0.8); }
+    }
+    @keyframes pulseOrange {
+      0%, 100% { transform: scale(1); opacity: 1; box-shadow: 0 0 12px rgba(245, 158, 11, 0.6); }
+      50% { transform: scale(1.15); opacity: 0.75; box-shadow: 0 0 20px rgba(245, 158, 11, 0.8); }
+    }
+
+    /* Shimmer screen loading */
+    .shimmer {
+      background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.03) 50%, rgba(255,255,255,0) 100%);
+      background-size: 200% 100%;
+      animation: loading 1.6s infinite;
+    }
+    @keyframes loading {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+  </style>
+</head>
+<body class="font-sans antialiased pb-12">
+
+  <!-- Header Section -->
+  <header class="py-6 px-6 max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between border-b border-white/5 gap-4">
+    <div class="flex items-center gap-4">
+      <img
+        src="/public/logo.png"
+        alt="Server Logo"
+        class="w-16 h-16 rounded-2xl shadow-lg"
+      >
+      <div>
+        <div class="flex items-center gap-2">
+          <h1 class="text-3xl font-extrabold font-outfit tracking-wide bg-gradient-to-r from-white via-indigo-100 to-indigo-300 bg-clip-text text-transparent">KeepAlive</h1>
+          <span class="text-[10px] font-mono tracking-widest text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-2 py-0.5 rounded uppercase">v2.1</span>
+        </div>
+        <p class="text-xs text-slate-400 mt-0.5 font-outfit">Enterprise Keep-Alive Engine & Analytics Platform</p>
+      </div>
+    </div>
+    
+    <div class="flex flex-wrap items-center gap-3">
+      <!-- Time displays -->
+      <div id="system-time" class="text-sm font-semibold font-mono text-slate-300 bg-white/5 py-2.5 px-4 rounded-xl border border-white/5 flex items-center gap-2">
+        <span class="w-2 h-2 rounded-full bg-indigo-400 animate-ping"></span>
+        <span id="time-display">--:--:--</span>
+      </div>
+      
+      <!-- Quick controls -->
+      <button onclick="pingAll()" id="ping-all-btn" class="glass-card hover:border-indigo-500/30 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white font-semibold text-xs py-2.5 px-4 rounded-xl flex items-center gap-2 border border-indigo-500/25">
+        <i id="ping-all-icon" class="fa-solid fa-bolt"></i> Ping All
+      </button>
+      
+      <button onclick="refreshData()" class="glass-card bg-white/5 hover:bg-white/10 text-slate-300 font-semibold text-xs py-2.5 px-4 rounded-xl flex items-center gap-2 border border-white/5">
+        <i id="refresh-icon" class="fa-solid fa-rotate"></i> Sync
+      </button>
+    </div>
+  </header>
+
+  <!-- Dashboard Main Grid -->
+  <main class="max-w-7xl mx-auto px-6 mt-8">
+
+    <!-- Filters, Stats & Search Panel -->
+    <div class="glass-panel rounded-2xl p-4 mb-8 flex flex-col md:flex-row items-center justify-between gap-4">
+      <div class="flex flex-wrap items-center gap-2">
+        <button class="bg-indigo-600/20 text-indigo-300 border border-indigo-500/20 text-xs py-1.5 px-3.5 rounded-lg font-medium tracking-wide" id="filter-btn-all" onclick="setSearchFilter('status', 'ALL')">All Services</button>
+        <button class="bg-white/5 hover:bg-white/10 text-slate-400 border border-white/5 text-xs py-1.5 px-3.5 rounded-lg font-medium tracking-wide" id="filter-btn-online" onclick="setSearchFilter('status', 'ONLINE')">Online</button>
+        <button class="bg-white/5 hover:bg-white/10 text-slate-400 border border-white/5 text-xs py-1.5 px-3.5 rounded-lg font-medium tracking-wide" id="filter-btn-offline" onclick="setSearchFilter('status', 'OFFLINE')">Offline</button>
+        <button class="bg-white/5 hover:bg-white/10 text-slate-400 border border-white/5 text-xs py-1.5 px-3.5 rounded-lg font-medium tracking-wide" id="filter-btn-pending" onclick="setSearchFilter('status', 'PENDING')">Pending</button>
+      </div>
+
+      <!-- Search bar -->
+      <div class="relative w-full md:w-72">
+        <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-slate-500">
+          <i class="fa-solid fa-magnifying-glass text-xs"></i>
+        </span>
+        <input type="text" id="search-input" onkeyup="handleSearch(this.value)" placeholder="Search host or api..." class="w-full bg-obsidian/60 border border-white/5 text-xs py-2 pl-9 pr-4 rounded-xl text-slate-300 focus:outline-none focus:border-indigo-500/40 focus:ring-1 focus:ring-indigo-500/10 placeholder-slate-500 transition-all">
+      </div>
+    </div>
+
+    <!-- Status Cards Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8" id="servers-grid">
+      <!-- Skeleton Loading Cards -->
+      <div class="glass-card rounded-2xl p-6 h-48 shimmer"></div>
+      <div class="glass-card rounded-2xl p-6 h-48 shimmer"></div>
+      <div class="glass-card rounded-2xl p-6 h-48 shimmer"></div>
+      <div class="glass-card rounded-2xl p-6 h-48 shimmer"></div>
+    </div>
+
+    <!-- Charts & Analytics Section -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+      <!-- Latency Trend Graph -->
+      <div class="glass-panel rounded-2xl p-6 lg:col-span-2 relative overflow-hidden">
+        <div class="flex items-center justify-between mb-6">
+          <div>
+            <h2 class="text-lg font-bold font-outfit text-slate-100 tracking-wide"><i class="fa-solid fa-chart-line mr-2 text-indigo-400"></i> Latency Analytics</h2>
+            <p class="text-[10px] text-slate-500 mt-0.5">Response times over the last 10 execution cycles</p>
+          </div>
+          <span class="text-[10px] font-mono text-indigo-400 bg-indigo-500/10 border border-indigo-500/15 py-1 px-2.5 rounded-lg">ms (millisecond) scale</span>
+        </div>
+        <div class="h-[280px] w-full relative">
+          <canvas id="latencyChart"></canvas>
+        </div>
+      </div>
+      
+      <!-- System Summary Diagnostics -->
+      <div class="glass-panel rounded-2xl p-6 flex flex-col justify-between">
+        <div>
+          <div class="flex items-center justify-between mb-5">
+            <h2 class="text-lg font-bold font-outfit text-slate-100 tracking-wide"><i class="fa-solid fa-cube mr-2 text-pink-400"></i> Service Status</h2>
+            <span class="text-xs text-slate-400" id="services-summary-ratio">0/0 Active</span>
+          </div>
+          <div class="space-y-4 terminal-scrollbar overflow-y-auto max-h-[250px] pr-1" id="diagnostics-panel">
+            <p class="text-slate-400 text-xs">Loading service components...</p>
+          </div>
+        </div>
+        <div class="pt-4 border-t border-white/5 text-[10px] text-slate-500 flex items-center justify-between">
+          <span>Engine interval: 10m / 15m</span>
+          <span>TTL Logs: 1 Hour (Auto Expire)</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Interactive Live Terminal Logs Feed -->
+    <div class="terminal-window rounded-2xl p-5 mb-8">
+      <div class="flex items-center justify-between border-b border-indigo-500/15 pb-3 mb-4">
+        <div class="flex items-center gap-2.5">
+          <div class="flex gap-1.5">
+            <span class="w-3.5 h-3.5 rounded-full bg-[#ff5f56]"></span>
+            <span class="w-3.5 h-3.5 rounded-full bg-[#ffbd2e]"></span>
+            <span class="w-3.5 h-3.5 rounded-full bg-[#27c93f]"></span>
+          </div>
+          <span class="text-xs font-mono text-indigo-300 font-bold tracking-wider ml-1">EVENT_STREAM_CONSOLE</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="clearTerminal()" class="text-[10px] font-mono text-slate-500 hover:text-slate-300 bg-white/5 py-1 px-2.5 rounded border border-white/5 transition-all">Clear Logs</button>
+        </div>
+      </div>
+      
+      <!-- Terminal scroll area -->
+      <div id="terminal-stream" class="h-44 overflow-y-auto font-mono text-xs text-slate-300 space-y-1.5 terminal-scrollbar pr-2">
+        <div class="text-[#27c93f]/80">[SYSTEM] Keep-Alive Engine v2.1 console initialized. Listening for logs...</div>
+      </div>
+    </div>
+
+    <!-- Table Grid Logs Feed -->
+    <div class="glass-panel rounded-2xl p-6">
+      <div class="flex flex-col sm:flex-row items-center justify-between gap-4 mb-6">
+        <div>
+          <h2 class="text-lg font-bold font-outfit text-slate-100 tracking-wide"><i class="fa-solid fa-list-check mr-2 text-emerald-400"></i> Database Audit Logs</h2>
+          <p class="text-xs text-slate-400">Showing last 50 health validations from MongoDB</p>
+        </div>
+        <div class="flex gap-2" id="log-filter-buttons">
+          <button class="bg-indigo-600/30 text-indigo-300 border border-indigo-500/20 text-xs py-1 px-3.5 rounded-lg font-medium" onclick="filterLogs('ALL')">All Logs</button>
+          <button class="bg-slate-800 text-slate-300 border border-white/5 text-xs py-1 px-3.5 rounded-lg font-medium hover:bg-slate-700" onclick="filterLogs('SUCCESS')">Success</button>
+          <button class="bg-slate-800 text-slate-300 border border-white/5 text-xs py-1 px-3.5 rounded-lg font-medium hover:bg-slate-700" onclick="filterLogs('ERROR')">Errors</button>
+        </div>
+      </div>
+      
+      <div class="overflow-x-auto w-full">
+        <table class="w-full text-left text-sm border-collapse">
+          <thead>
+            <tr class="border-b border-white/10 text-slate-400 text-xs font-semibold uppercase tracking-wider">
+              <th class="py-3.5 px-4 font-outfit">Service Name</th>
+              <th class="py-3.5 px-4 font-outfit">Checked (IST)</th>
+              <th class="py-3.5 px-4 font-outfit">Validation Status</th>
+              <th class="py-3.5 px-4 font-outfit">HTTP Status</th>
+              <th class="py-3.5 px-4 font-outfit">Response Latency</th>
+              <th class="py-3.5 px-4 font-outfit">Details / Failures</th>
+            </tr>
+          </thead>
+          <tbody id="logs-table-body" class="divide-y divide-white/5 text-slate-300">
+            <tr>
+              <td colspan="6" class="py-8 text-center text-slate-500 shimmer">Retrieving historical data...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Interactive Detail Modal -->
+  <div id="service-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-obsidian/85 backdrop-blur-md hidden" onclick="closeModal()">
+    <div class="glass-panel w-full max-w-2xl rounded-2xl overflow-hidden shadow-2xl border border-white/10 flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200" onclick="event.stopPropagation()">
+      <!-- Modal Header -->
+      <div class="p-6 border-b border-white/5 flex items-center justify-between bg-white/5">
+        <div>
+          <h3 id="modal-service-name" class="font-outfit font-extrabold text-xl text-slate-100">Service Details</h3>
+          <p id="modal-service-type" class="text-[10px] font-mono text-indigo-400 mt-0.5 uppercase tracking-wider">PINGER</p>
+        </div>
+        <button onclick="closeModal()" class="text-slate-400 hover:text-white bg-white/5 hover:bg-white/10 p-2 rounded-xl border border-white/5 transition-all">
+          <i class="fa-solid fa-xmark text-sm w-4 h-4 flex items-center justify-center"></i>
+        </button>
+      </div>
+
+      <!-- Modal Scrollable Content -->
+      <div class="p-6 overflow-y-auto space-y-6 text-slate-300 terminal-scrollbar">
+        <!-- Status summary section -->
+        <div class="grid grid-cols-2 gap-4">
+          <div class="bg-white/5 p-4 rounded-xl border border-white/5">
+            <span class="text-[10px] uppercase text-slate-500 font-semibold tracking-wider block">Connection URL</span>
+            <span id="modal-service-url" class="text-xs text-slate-300 font-medium truncate block mt-1" title="">-</span>
+          </div>
+          <div class="bg-white/5 p-4 rounded-xl border border-white/5">
+            <span class="text-[10px] uppercase text-slate-500 font-semibold tracking-wider block">Latest Result</span>
+            <span id="modal-service-status" class="text-xs font-bold block mt-1 uppercase">-</span>
+          </div>
+        </div>
+
+        <!-- Advanced Sub-components / Diagnostics -->
+        <div id="modal-advanced-diagnostics" class="hidden">
+          <h4 class="font-outfit font-bold text-sm text-slate-200 mb-3"><i class="fa-solid fa-list-check mr-2 text-indigo-400"></i> Advanced System Diagnostics</h4>
+          <div id="modal-advanced-container" class="space-y-4">
+            <!-- Dynamic parameters injected here -->
+          </div>
+        </div>
+
+        <!-- Raw Response Block -->
+        <div>
+          <h4 class="font-outfit font-bold text-sm text-slate-200 mb-2.5"><i class="fa-solid fa-terminal mr-2 text-pink-400"></i> Last Raw Server Payload</h4>
+          <pre class="bg-black/85 border border-white/5 rounded-xl p-4 overflow-x-auto text-[10px] font-mono text-[#27c93f] leading-relaxed max-h-48 terminal-scrollbar"><code id="modal-raw-response">{}</code></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let latencyChartInstance = null;
+    let allLogs = [];
+    let currentFilter = 'ALL';
+    let cachedStatusMap = {};
+    let searchFilterState = {
+      query: '',
+      status: 'ALL'
+    };
+
+    // Update real-time clock
+    function updateClock() {
+      const options = { timeZone: 'Asia/Kolkata', hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' };
+      const formatter = new Intl.DateTimeFormat('en-IN', options);
+      document.getElementById('time-display').textContent = formatter.format(new Date()) + ' IST';
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    // Terminal Logging Utilities
+    function addToTerminal(message, type = 'info') {
+      const term = document.getElementById('terminal-stream');
+      if (!term) return;
+      
+      const ts = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      let colorClass = 'text-slate-400';
+      let icon = '[INFO]';
+      
+      if (type === 'success') {
+        colorClass = 'text-emerald-400';
+        icon = '[SUCCESS]';
+      } else if (type === 'error') {
+        colorClass = 'text-rose-500';
+        icon = '[ERROR]';
+      } else if (type === 'warn') {
+        colorClass = 'text-amber-400';
+        icon = '[WARN]';
+      }
+      
+      const p = document.createElement('div');
+      p.className = `${colorClass}/90 leading-normal`;
+      p.innerHTML = `<span class="text-indigo-400/80 font-bold">[${ts}]</span> <span class="font-bold">${icon}</span> ${message}`;
+      
+      term.appendChild(p);
+      term.scrollTop = term.scrollHeight;
+    }
+
+    // Clear Terminal Logs
+    function clearTerminal() {
+      const term = document.getElementById('terminal-stream');
+      if (term) term.innerHTML = `<div class="text-[#27c93f]/80">[SYSTEM] Terminal logs cleared. Listening for events...</div>`;
+    }
+
+    // Refresh everything
+    async function refreshData() {
+      const refreshIcon = document.getElementById('refresh-icon');
+      if (refreshIcon) refreshIcon.classList.add('fa-spin');
+      
+      try {
+        await Promise.all([loadStatus(), loadLogs()]);
+        addToTerminal("System status and database logs synchronized successfully.", "success");
+      } catch (err) {
+        console.error('Refresh failed:', err);
+        addToTerminal(`Synchronization failed: ${err.message || err}`, "error");
+      } finally {
+        if (refreshIcon) {
+          setTimeout(() => refreshIcon.classList.remove('fa-spin'), 600);
+        }
+      }
+    }
+
+    // Ping single server
+    async function forcePing(name) {
+      const btn = document.getElementById(`ping-btn-${name.replace(/\s+/g, '-')}`);
+      if (btn) {
+        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-1 text-[10px]"></i>`;
+        btn.disabled = true;
+      }
+      
+      addToTerminal(`Manually triggering validation run for: ${name}...`, "info");
+      
+      try {
+        const response = await fetch(`/api/ping/${encodeURIComponent(name)}`, { method: 'POST' });
+        if (response.ok) {
+          addToTerminal(`Request sent successfully for ${name}. Refresh scheduled.`, "success");
+          showNotification(`Ping triggered successfully for ${name}.`);
+          setTimeout(refreshData, 1500);
+        } else {
+          addToTerminal(`Failed to trigger ping for ${name}. Status: ${response.status}`, "error");
+          showNotification(`Failed to trigger ping for ${name}.`, true);
+        }
+      } catch (err) {
+        addToTerminal(`Connection failure triggering ping: ${err.message}`, "error");
+        showNotification(`Error: ${err.message}`, true);
+      } finally {
+        if (btn) {
+          btn.innerHTML = `<i class="fa-solid fa-bolt"></i> Trigger`;
+          btn.disabled = false;
+        }
+      }
+    }
+
+    // Trigger ping for all pingers concurrently
+    async function pingAll() {
+      const btn = document.getElementById('ping-all-btn');
+      const icon = document.getElementById('ping-all-icon');
+      if (btn && icon) {
+        icon.className = 'fa-solid fa-spinner fa-spin';
+        btn.disabled = true;
+      }
+      
+      addToTerminal("Starting concurrent batch validation run for all servers...", "info");
+      
+      // Get all services of type pinger from current cache
+      const pingers = Object.values(cachedStatusMap).filter(s => s.type === 'pinger');
+      if (pingers.length === 0) {
+        addToTerminal("No monitored pingers configured to ping.", "warn");
+        if (btn && icon) {
+          icon.className = 'fa-solid fa-bolt';
+          btn.disabled = false;
+        }
+        return;
+      }
+
+      const promises = pingers.map(async (pinger) => {
+        try {
+          const res = await fetch(`/api/ping/${encodeURIComponent(pinger.name)}`, { method: 'POST' });
+          if (res.ok) {
+            addToTerminal(`Validation triggered for ${pinger.name}.`, "success");
+          } else {
+            addToTerminal(`Failed to trigger ${pinger.name}: status ${res.status}`, "error");
+          }
+        } catch (e) {
+          addToTerminal(`Error calling trigger for ${pinger.name}: ${e.message}`, "error");
+        }
+      });
+
+      await Promise.all(promises);
+      addToTerminal("Batch ping job finished. Syncing database records in 2 seconds...", "success");
+      showNotification("Batch ping controls dispatched.");
+      setTimeout(refreshData, 2000);
+
+      if (btn && icon) {
+        icon.className = 'fa-solid fa-bolt';
+        btn.disabled = false;
+      }
+    }
+
+    // Toast notifications
+    function showNotification(msg, isError = false) {
+      const div = document.createElement('div');
+      div.className = `fixed bottom-6 right-6 z-50 glass-panel px-5 py-3 rounded-xl border flex items-center gap-3 shadow-2xl animate-bounce ${isError ? 'border-neonRed/40 text-rose-200' : 'border-neonGreen/40 text-emerald-200'}`;
+      div.innerHTML = `<i class="fa-solid ${isError ? 'fa-triangle-exclamation text-neonRed' : 'fa-circle-check text-neonGreen'}"></i> <span class="text-xs font-semibold font-outfit">${msg}</span>`;
+      document.body.appendChild(div);
+      setTimeout(() => div.remove(), 4000);
+    }
+
+    // Format ISO string to IST local time
+    function formatIST(isoString) {
+      if (!isoString || isoString === 'Never') return 'Never';
+      try {
+        const date = new Date(isoString);
+        if (isNaN(date.getTime())) return 'Never';
+        return date.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false, month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      } catch (e) {
+        return 'Never';
+      }
+    }
+
+    // Search and filter callbacks
+    function handleSearch(val) {
+      searchFilterState.query = val.toLowerCase().trim();
+      renderFilteredDashboard();
+    }
+
+    function setSearchFilter(key, value) {
+      searchFilterState[key] = value;
+      
+      // Update buttons style
+      const btns = {
+        'ALL': 'filter-btn-all',
+        'ONLINE': 'filter-btn-online',
+        'OFFLINE': 'filter-btn-offline',
+        'PENDING': 'filter-btn-pending'
+      };
+      
+      Object.keys(btns).forEach(k => {
+        const btn = document.getElementById(btns[k]);
+        if (!btn) return;
+        if (k === value) {
+          btn.className = "bg-indigo-600/20 text-indigo-300 border border-indigo-500/20 text-xs py-1.5 px-3.5 rounded-lg font-medium tracking-wide";
+        } else {
+          btn.className = "bg-white/5 hover:bg-white/10 text-slate-400 border border-white/5 text-xs py-1.5 px-3.5 rounded-lg font-medium tracking-wide";
+        }
+      });
+      
+      renderFilteredDashboard();
+    }
+
+    function renderFilteredDashboard() {
+      const grid = document.getElementById('servers-grid');
+      const diagPanel = document.getElementById('diagnostics-panel');
+      if (!grid || !diagPanel) return;
+      
+      grid.innerHTML = '';
+      diagPanel.innerHTML = '';
+      
+      let renderedCount = 0;
+      let totalCount = 0;
+      let activeCount = 0;
+      
+      Object.values(cachedStatusMap).forEach(server => {
+        totalCount++;
+        const normStatus = (server.status || 'PENDING').toUpperCase();
+        const isOnline = normStatus.startsWith('SUCCESS') || normStatus === 'HEALTHY' || normStatus === 'OK';
+        const isOffline = normStatus.startsWith('FAILED') || normStatus.startsWith('ERROR') || normStatus === 'OFFLINE';
+        const isPending = normStatus === 'PENDING' || normStatus === 'SKIPPED';
+        
+        if (isOnline) activeCount++;
+
+        // Filters matching
+        const matchesQuery = !searchFilterState.query || 
+                            server.name.toLowerCase().includes(searchFilterState.query) || 
+                            (server.url && server.url.toLowerCase().includes(searchFilterState.query));
+                            
+        let matchesStatus = true;
+        if (searchFilterState.status === 'ONLINE') matchesStatus = isOnline;
+        else if (searchFilterState.status === 'OFFLINE') matchesStatus = isOffline;
+        else if (searchFilterState.status === 'PENDING') matchesStatus = isPending;
+
+        if (matchesQuery && matchesStatus) {
+          renderedCount++;
+          renderServerCardAndDiagnostic(server, grid, diagPanel);
+        }
+      });
+
+      // Update service ratio summary text
+      const summaryText = document.getElementById('services-summary-ratio');
+      if (summaryText) {
+        summaryText.textContent = `${activeCount}/${totalCount} Active`;
+      }
+      
+      if (renderedCount === 0) {
+        grid.innerHTML = `<div class="col-span-full py-12 text-center text-slate-500 font-outfit text-sm">No configured hosts match the query.</div>`;
+      }
+    }
+
+    function renderServerCardAndDiagnostic(server, grid, diagPanel) {
+      // Compute styles based on status
+      let statusBadgeClass = '';
+      let dotGlowClass = '';
+      let borderGlowClass = '';
+      let statusIcon = '';
+      const normStatus = server.status ? server.status.toUpperCase() : 'PENDING';
+      
+      if (normStatus.startsWith('SUCCESS') || normStatus === 'HEALTHY' || normStatus === 'OK') {
+        statusBadgeClass = 'bg-neonGreen/10 text-neonGreen border-neonGreen/20';
+        dotGlowClass = 'bg-neonGreen pulse-online';
+        borderGlowClass = 'neon-glow-success border-t-neonGreen/30';
+        statusIcon = '<i class="fa-solid fa-circle-check mr-1 animate-pulse"></i>';
+      } else if (normStatus.startsWith('FAILED') || normStatus.startsWith('DEGRADED') || normStatus.includes('DEGRADED') || normStatus.startsWith('502')) {
+        statusBadgeClass = 'bg-neonOrange/10 text-neonOrange border-neonOrange/20';
+        dotGlowClass = 'bg-neonOrange pulse-warn';
+        borderGlowClass = 'neon-glow-warn border-t-neonOrange/30';
+        statusIcon = '<i class="fa-solid fa-triangle-exclamation mr-1"></i>';
+      } else if (normStatus.startsWith('ERROR') || normStatus === 'OFFLINE' || normStatus.startsWith('500') || normStatus.startsWith('503')) {
+        statusBadgeClass = 'bg-neonRed/10 text-neonRed border-neonRed/20';
+        dotGlowClass = 'bg-neonRed pulse-offline';
+        borderGlowClass = 'neon-glow-error border-t-neonRed/30';
+        statusIcon = '<i class="fa-solid fa-circle-xmark mr-1"></i>';
+      } else {
+        statusBadgeClass = 'bg-slate-500/10 text-slate-400 border-white/5';
+        dotGlowClass = 'bg-slate-500';
+        borderGlowClass = 'border-t-white/10';
+        statusIcon = '<i class="fa-solid fa-circle-question mr-1"></i>';
+      }
+
+      // Safe latency formatting
+      const latencyText = server.type === 'pinger' 
+        ? (typeof server.latency_ms === 'number' && server.latency_ms > 0 ? `${server.latency_ms.toFixed(0)} ms` : '-- ms') 
+        : 'Scraper';
+
+      const lastCheckTime = formatIST(server.last_checked);
+      const nameId = (server.name || 'service').replace(/\s+/g, '-');
+
+      // 1. Create and Append Server Card
+      const cardHtml = `
+        <div onclick="openModal('${server.name}')" class="glass-card rounded-2xl p-6 relative overflow-hidden flex flex-col justify-between h-48 border-t-2 ${borderGlowClass} cursor-pointer">
+          <div class="flex items-start justify-between gap-1">
+            <div class="overflow-hidden">
+              <h3 class="font-outfit font-bold text-base text-slate-100 truncate">${server.name || 'Unnamed'}</h3>
+              <p class="text-[10px] text-slate-500 truncate max-w-[180px]" title="${server.url || 'Scraper Service'}">${server.url || 'Local Scraping Engine'}</p>
+            </div>
+            <div class="flex items-center gap-1 px-2 py-0.5 rounded-full border text-[9px] font-bold tracking-wider uppercase shrink-0 ${statusBadgeClass}">
+              ${statusIcon} ${server.status || 'Pending'}
+            </div>
+          </div>
+          
+          <div class="my-3 flex items-baseline gap-1.5">
+            <span class="text-3xl font-outfit font-black text-slate-50 tracking-tight">${latencyText}</span>
+            ${server.type === 'pinger' ? '<span class="text-[10px] text-slate-500">delay</span>' : ''}
+          </div>
+
+          <div class="flex items-center justify-between border-t border-white/5 pt-3 mt-1" onclick="event.stopPropagation()">
+            <div class="flex flex-col">
+              <span class="text-[9px] text-slate-500 uppercase font-bold tracking-wider">Checked</span>
+              <span class="text-[10px] text-slate-300 font-mono font-medium">${lastCheckTime}</span>
+            </div>
+            <button id="ping-btn-${nameId}" onclick="forcePing('${server.name}')" class="bg-white/5 hover:bg-indigo-600/30 text-slate-300 hover:text-white border border-white/5 hover:border-indigo-500/30 py-1 px-2.5 rounded-lg text-[10px] font-bold tracking-wide transition-all flex items-center gap-1">
+              <i class="fa-solid fa-bolt text-xs"></i> Trigger
+            </button>
+          </div>
+          <div class="absolute right-0 bottom-0 top-0 w-0.5 ${dotGlowClass}"></div>
+        </div>
+      `;
+      grid.insertAdjacentHTML('beforeend', cardHtml);
+
+      // 2. Create and Append Diagnostics Panel Row
+      let diagHtml = '';
+      if (server.type === 'pinger') {
+        const dbIcon = server.db_ok ? '<i class="fa-solid fa-circle-check text-neonGreen text-xs"></i>' : '<i class="fa-solid fa-circle-xmark text-neonRed text-xs"></i>';
+        const redisIcon = server.redis_ok ? '<i class="fa-solid fa-circle-check text-neonGreen text-xs"></i>' : '<i class="fa-solid fa-circle-xmark text-neonRed text-xs"></i>';
+        
+        let uptimeText = 'N/A';
+        if (server.uptime_seconds) {
+          const h = Math.floor(server.uptime_seconds / 3600);
+          const m = Math.floor((server.uptime_seconds % 3600) / 60);
+          uptimeText = h > 0 ? `${h}h ${m}m` : `${m}m`;
+        } else if (server.details && server.details.uptime) {
+          uptimeText = server.details.uptime;
+        }
+
+        diagHtml = `
+          <div class="flex items-center justify-between bg-white/5 hover:bg-white/10 p-3 rounded-xl border border-white/5 transition-all">
+            <div class="flex items-center gap-2">
+              <div class="w-2.5 h-2.5 rounded-full ${dotGlowClass}"></div>
+              <span class="text-xs font-semibold font-outfit text-slate-200">${server.name || 'Unnamed'}</span>
+            </div>
+            <div class="flex items-center gap-3 text-[10px] font-mono">
+              <span class="flex items-center gap-1 text-slate-400">DB: ${dbIcon}</span>
+              <span class="flex items-center gap-1 text-slate-400">Cache: ${redisIcon}</span>
+              <span class="text-slate-500 border-l border-white/10 pl-2">UP: <b class="text-slate-200 font-semibold font-sans">${uptimeText}</b></span>
+            </div>
+          </div>
+        `;
+      } else {
+        // Scraper status info
+        let scrapStatus = 'Inactive';
+        let scrapCount = '0';
+        if (server.details && server.details.status === 'completed') {
+          scrapStatus = 'Success';
+          scrapCount = server.details.success_count || '0';
+        } else if (server.status === 'RUNNING') {
+          scrapStatus = 'Running';
+        }
+        
+        diagHtml = `
+          <div class="flex items-center justify-between bg-white/5 hover:bg-white/10 p-3 rounded-xl border border-white/5 transition-all">
+            <div class="flex items-center gap-2">
+              <div class="w-2.5 h-2.5 rounded-full ${server.status === 'RUNNING' ? 'bg-indigo-500 animate-ping' : 'bg-indigo-400'}"></div>
+              <span class="text-xs font-semibold font-outfit text-slate-200">${server.name || 'Unnamed'}</span>
+            </div>
+            <div class="flex items-center gap-3 text-[10px] font-mono">
+              <span class="text-slate-400">Status: <b class="text-indigo-400 font-semibold font-sans">${scrapStatus}</b></span>
+              <span class="text-slate-500 border-l border-white/10 pl-2">Done: <b class="text-slate-200 font-semibold font-sans">${scrapCount}</b></span>
+            </div>
+          </div>
+        `;
+      }
+      diagPanel.insertAdjacentHTML('beforeend', diagHtml);
+    }
+
+    // Fetch and display status
+    async function loadStatus() {
+      try {
+        const res = await fetch('/api/status');
+        if (!res.ok) {
+          addToTerminal(`Failed to retrieve live status map: ${res.status}`, "error");
+          return;
+        }
+        cachedStatusMap = await res.json();
+        renderFilteredDashboard();
+      } catch (err) {
+        console.error("Error in loadStatus:", err);
+        addToTerminal(`Failed to fetch status: ${err.message || err}`, "error");
+      }
+    }
+
+    // Fetch and display logs feed
+    async function loadLogs() {
+      try {
+        const res = await fetch('/api/logs');
+        if (!res.ok) {
+          addToTerminal(`Failed to retrieve activity log feed: ${res.status}`, "error");
+          return;
+        }
+        const newLogs = await res.json();
+        
+        // Check if there are new logs to print to terminal stream
+        if (allLogs.length > 0 && newLogs.length > 0) {
+          const freshItems = newLogs.filter(n => !allLogs.some(o => o.timestamp === n.timestamp));
+          freshItems.reverse().forEach(log => {
+            const isOk = log.status && (log.status.startsWith('SUCCESS') || log.status === 'OK');
+            addToTerminal(`Async event logged: ${log.service} -> ${log.status} (${log.latency_ms ? log.latency_ms.toFixed(0) + 'ms' : '--'})`, isOk ? 'success' : 'error');
+          });
+        }
+        
+        allLogs = newLogs;
+        renderLogsTable();
+        updateChartData();
+      } catch (err) {
+        console.error("Error in loadLogs:", err);
+        addToTerminal(`Failed to fetch logs: ${err.message || err}`, "error");
+      }
+    }
+
+    // Filter logs list
+    function filterLogs(status) {
+      currentFilter = status;
+      const buttons = document.querySelectorAll('#log-filter-buttons button');
+      buttons.forEach(btn => {
+        btn.className = "bg-slate-800 text-slate-300 border border-white/5 text-xs py-1.5 px-3.5 rounded-lg font-medium hover:bg-slate-700 transition-all";
+      });
+      
+      const targetIdx = status === 'ALL' ? 0 : (status === 'SUCCESS' ? 1 : 2);
+      buttons[targetIdx].className = "bg-indigo-600/30 text-indigo-300 border border-indigo-500/20 text-xs py-1.5 px-3.5 rounded-lg font-medium";
+      
+      renderLogsTable();
+    }
+
+    // Render HTML logs table
+    function renderLogsTable() {
+      try {
+        const tbody = document.getElementById('logs-table-body');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+        
+        const filtered = allLogs.filter(log => {
+          if (!log) return false;
+          const logStatus = log.status || '';
+          if (currentFilter === 'ALL') return true;
+          if (currentFilter === 'SUCCESS') return logStatus.startsWith('SUCCESS');
+          if (currentFilter === 'ERROR') return logStatus.startsWith('ERROR') || logStatus.startsWith('FAILED');
+          return true;
+        });
+
+        if (filtered.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="6" class="py-8 text-center text-slate-500 font-mono text-xs">No matching database logs found.</td></tr>`;
+          return;
+        }
+
+        filtered.forEach(log => {
+          try {
+            let badgeClass = '';
+            const logStatus = log.status || 'UNKNOWN';
+            if (logStatus.startsWith('SUCCESS')) {
+              badgeClass = 'bg-neonGreen/10 text-neonGreen border-neonGreen/10';
+            } else if (logStatus.startsWith('FAILED') || logStatus.startsWith('ERROR') || logStatus.startsWith('500') || logStatus.startsWith('503')) {
+              badgeClass = 'bg-neonRed/10 text-neonRed border-neonRed/10';
+            } else {
+              badgeClass = 'bg-slate-500/10 text-slate-400 border-white/5';
+            }
+            
+            let extraDiag = '-';
+            if (log.error) {
+              extraDiag = `<span class="text-neonRed font-mono text-xs break-all">${log.error}</span>`;
+            } else if (log.analytics) {
+              const a = log.analytics;
+              extraDiag = `<span class="text-slate-400 text-xs font-sans">DB: ${a.db_ok ? 'OK' : 'Error'}, Cache: ${a.redis_ok ? 'OK' : 'Error'}${a.uptime_seconds ? `, UP: ${Math.floor(a.uptime_seconds / 60)}m` : ''}</span>`;
+            }
+            
+            const row = `
+              <tr class="hover:bg-white/5 transition-all text-xs">
+                <td class="py-3 px-4 font-outfit font-bold text-slate-200">${log.service || 'Unknown'}</td>
+                <td class="py-3 px-4 text-[11px] text-slate-400 font-mono">${formatIST(log.timestamp)}</td>
+                <td class="py-3 px-4">
+                  <span class="px-2 py-0.5 rounded-md border text-[10px] font-bold tracking-wider uppercase ${badgeClass}">${logStatus}</span>
+                </td>
+                <td class="py-3 px-4 font-mono text-xs">${log.status_code || '-'}</td>
+                <td class="py-3 px-4 font-mono text-xs text-indigo-300 font-medium">${typeof log.latency_ms === 'number' ? log.latency_ms.toFixed(0) + 'ms' : '-'}</td>
+                <td class="py-3 px-4 max-w-xs truncate font-mono text-[10px]" title="${log.error || ''}">${extraDiag}</td>
+              </tr>
+            `;
+            tbody.insertAdjacentHTML('beforeend', row);
+          } catch (rowErr) {
+            console.error("Error rendering log row:", log, rowErr);
+          }
+        });
+      } catch (err) {
+        console.error("Error in renderLogsTable:", err);
+      }
+    }
+
+    // Populate chart with recent latency metrics grouped by service
+    function updateChartData() {
+      try {
+        const services = [...new Set(allLogs.map(l => l.service))].filter(Boolean);
+        
+        const datasets = services.map(serviceName => {
+          // Filter logs for this service and get last 10 sorted ascending in time
+          const serviceLogs = allLogs
+            .filter(l => l && l.service === serviceName && typeof l.latency_ms === 'number' && l.latency_ms > 0)
+            .slice(0, 10)
+            .reverse(); // old to new
+
+          const colorMap = {
+            'Quillix API': '#6366f1', // Indigo
+            'Affiliate MVP Health': '#d946ef', // Pink
+            'Stock Sentinel Server': '#10b981', // Emerald
+            'VisionRetail IQ': '#f59e0b' // Amber
+          };
+          
+          const color = colorMap[serviceName] || '#94a3b8';
+          
+          return {
+            label: serviceName,
+            data: serviceLogs.map(l => l.latency_ms),
+            borderColor: color,
+            backgroundColor: color + '08', // Transparent background glow
+            borderWidth: 2,
+            tension: 0.4,
+            pointRadius: 3,
+            pointBackgroundColor: color,
+            pointBorderColor: '#030303',
+            pointHoverRadius: 5,
+            fill: true
+          };
+        });
+
+        // Find labels (e.g. Ping 1 to Ping 10)
+        const maxLen = Math.max(...datasets.map(d => d.data.length), 0);
+        const labels = Array.from({ length: maxLen }, (_, i) => `Cycle -${maxLen - 1 - i}`);
+
+        const canvas = document.getElementById('latencyChart');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        
+        if (latencyChartInstance) {
+          latencyChartInstance.destroy();
+        }
+        
+        if (typeof Chart === 'undefined') {
+          console.warn("Chart.js library is not loaded.");
+          return;
+        }
+        
+        latencyChartInstance = new Chart(ctx, {
+          type: 'line',
+          data: { labels, datasets },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                position: 'top',
+                labels: {
+                  color: '#94a3b8',
+                  boxWidth: 10,
+                  boxHeight: 10,
+                  font: { family: 'Outfit', size: 10, weight: 'medium' }
+                }
+              },
+              tooltip: {
+                backgroundColor: 'rgba(10, 10, 12, 0.95)',
+                titleColor: '#e2e8f0',
+                bodyColor: '#e2e8f0',
+                borderWidth: 1,
+                borderColor: 'rgba(255,255,255,0.08)',
+                padding: 10,
+                displayColors: true,
+                callbacks: {
+                  label: function(context) {
+                    return ` ${context.dataset.label}: ${context.raw.toFixed(0)} ms`;
+                  }
+                }
+              }
+            },
+            scales: {
+              x: {
+                grid: { color: 'rgba(255,255,255,0.02)' },
+                ticks: { color: '#64748b', font: { family: 'Space Mono', size: 9 } }
+              },
+              y: {
+                grid: { color: 'rgba(255,255,255,0.04)' },
+                ticks: { 
+                  color: '#64748b', 
+                  font: { family: 'Space Mono', size: 9 },
+                  callback: value => value + ' ms'
+                }
+              }
+            }
+          }
+        });
+      } catch (err) {
+        console.error("Error in updateChartData:", err);
+      }
+    }
+
+    // Modal Operations
+    function openModal(serviceName) {
+      const server = cachedStatusMap[serviceName];
+      if (!server) return;
+
+      const modal = document.getElementById('service-modal');
+      const modalName = document.getElementById('modal-service-name');
+      const modalType = document.getElementById('modal-service-type');
+      const modalUrl = document.getElementById('modal-service-url');
+      const modalStatus = document.getElementById('modal-service-status');
+      const modalRaw = document.getElementById('modal-raw-response');
+      const modalDiag = document.getElementById('modal-advanced-diagnostics');
+      const modalContainer = document.getElementById('modal-advanced-container');
+
+      // Populate text details
+      modalName.textContent = server.name || 'Service Details';
+      modalType.textContent = server.type || 'PINGER';
+      modalUrl.textContent = server.url || 'Local Scraping Engine';
+      modalUrl.title = server.url || '';
+      
+      const normStatus = (server.status || 'PENDING').toUpperCase();
+      modalStatus.textContent = server.status || 'PENDING';
+      
+      // Color status text in modal
+      if (normStatus.startsWith('SUCCESS') || normStatus === 'HEALTHY' || normStatus === 'OK') {
+        modalStatus.className = "text-xs font-bold block mt-1 uppercase text-neonGreen";
+      } else if (normStatus.startsWith('FAILED') || normStatus.startsWith('ERROR') || normStatus.startsWith('500') || normStatus.startsWith('503')) {
+        modalStatus.className = "text-xs font-bold block mt-1 uppercase text-neonRed";
+      } else {
+        modalStatus.className = "text-xs font-bold block mt-1 uppercase text-neonOrange";
+      }
+
+      // Check if there are logs in audit feed for this service to fetch the last raw response payload
+      const matchingLogs = allLogs.filter(l => l.service === serviceName);
+      let lastResponse = "No response payload recorded in audit logs.";
+      
+      if (matchingLogs.length > 0 && matchingLogs[0].response) {
+        lastResponse = matchingLogs[0].response;
+        // Attempt formatting if it is JSON
+        try {
+          const parsed = JSON.parse(lastResponse);
+          lastResponse = JSON.stringify(parsed, null, 2);
+        } catch(e) {}
+      } else if (server.details && Object.keys(server.details).length > 0) {
+        lastResponse = JSON.stringify(server.details, null, 2);
+      }
+      modalRaw.textContent = lastResponse;
+
+      // Handle advanced analytics rendering (e.g. VisionRetail or Stock Sentinel)
+      modalContainer.innerHTML = '';
+      let hasAdvanced = false;
+
+      if (server.details && Object.keys(server.details).length > 0) {
+        const details = server.details;
+        
+        // 1. If it's Stock Sentinel Server, show DB/Redis latency metrics
+        if (server.name === 'Stock Sentinel Server') {
+          hasAdvanced = true;
+          modalContainer.innerHTML = `
+            <div class="grid grid-cols-2 gap-4">
+              <div class="bg-black/40 p-3 rounded-xl border border-white/5">
+                <span class="text-[9px] uppercase text-slate-500 font-bold font-outfit">MongoDB Delay</span>
+                <span class="text-sm font-mono font-bold text-indigo-300 block mt-0.5">${details.mongodb_latency_ms ? details.mongodb_latency_ms.toFixed(1) + ' ms' : 'N/A'}</span>
+              </div>
+              <div class="bg-black/40 p-3 rounded-xl border border-white/5">
+                <span class="text-[9px] uppercase text-slate-500 font-bold font-outfit">Redis Delay</span>
+                <span class="text-sm font-mono font-bold text-indigo-300 block mt-0.5">${details.redis_latency_ms ? details.redis_latency_ms.toFixed(1) + ' ms' : 'N/A'}</span>
+              </div>
+            </div>
+            
+            <div class="bg-black/40 p-4 rounded-xl border border-white/5 text-xs font-mono space-y-1">
+              <div class="text-slate-500 uppercase font-bold tracking-wider text-[9px] mb-2 font-outfit">Environment Attributes</div>
+              <div class="flex justify-between"><span class="text-slate-400">Python:</span> <span class="text-slate-200">${details.system?.python_version || 'N/A'}</span></div>
+              <div class="flex justify-between"><span class="text-slate-400">Platform:</span> <span class="text-slate-200">${details.system?.platform || 'N/A'} (${details.system?.os_release || ''})</span></div>
+              <div class="flex justify-between"><span class="text-slate-400">Groq Engine:</span> <span class="text-slate-200">${details.environment?.groq_ai || 'disabled'}</span></div>
+              <div class="flex justify-between"><span class="text-slate-400">Alerts System:</span> <span class="text-slate-200">${details.environment?.telegram_alerts || 'disabled'}</span></div>
+            </div>
+          `;
+        }
+        
+        // 2. If it's VisionRetail IQ, show live Camera streams and store lag
+        if (server.name === 'VisionRetail IQ' && details.cameras) {
+          hasAdvanced = true;
+          
+          let cameraRows = '';
+          details.cameras.forEach(cam => {
+            const statusColor = cam.status === 'ok' ? 'text-neonGreen' : 'text-neonRed';
+            cameraRows += `
+              <tr class="border-b border-white/5 text-[11px] font-mono">
+                <td class="py-2 text-slate-200 font-semibold">${cam.camera_id}</td>
+                <td class="py-2 text-center ${statusColor} font-bold">${cam.status.toUpperCase()}</td>
+                <td class="py-2 text-center text-slate-300">${cam.fps}</td>
+                <td class="py-2 text-center text-slate-300">${cam.event_rate_epm}/min</td>
+                <td class="py-2 text-right text-indigo-400 font-bold">${cam.lag_minutes.toFixed(2)}m</td>
+              </tr>
+            `;
+          });
+
+          let storeRows = '';
+          if (details.stores) {
+            details.stores.forEach(store => {
+              storeRows += `
+                <div class="flex justify-between items-center text-xs border-b border-white/5 pb-2">
+                  <div>
+                    <span class="text-slate-200 font-bold">${store.store_name}</span>
+                    <span class="text-[10px] text-slate-500 block">${store.store_location} (${store.city})</span>
+                  </div>
+                  <div class="text-right">
+                    <span class="text-[10px] text-slate-400 block font-mono">Lag: ${store.lag_minutes.toFixed(2)}m</span>
+                  </div>
+                </div>
+              `;
+            });
+          }
+
+          modalContainer.innerHTML = `
+            <div class="bg-black/40 p-4 rounded-xl border border-white/5 mb-4">
+              <span class="text-[9px] uppercase text-slate-500 font-bold font-outfit tracking-wider block mb-2">Ingested Camera Feeds</span>
+              <table class="w-full text-left">
+                <thead>
+                  <tr class="border-b border-white/10 text-slate-400 text-[10px] uppercase font-bold">
+                    <th class="pb-1.5">Camera ID</th>
+                    <th class="pb-1.5 text-center">Status</th>
+                    <th class="pb-1.5 text-center">FPS</th>
+                    <th class="pb-1.5 text-center">Rate</th>
+                    <th class="pb-1.5 text-right">Delay</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${cameraRows}
+                </tbody>
+              </table>
+            </div>
+            
+            <div class="bg-black/40 p-4 rounded-xl border border-white/5">
+              <span class="text-[9px] uppercase text-slate-500 font-bold font-outfit tracking-wider block mb-3">Store Locations Audit</span>
+              <div class="space-y-3.5">
+                ${storeRows}
+              </div>
+            </div>
+          `;
+        }
+      }
+
+      if (hasAdvanced) {
+        modalDiag.classList.remove('hidden');
+      } else {
+        modalDiag.classList.add('hidden');
+      }
+
+      modal.classList.remove('hidden');
+      document.body.style.overflow = 'hidden'; // Lock body scroll
+    }
+
+    function closeModal() {
+      const modal = document.getElementById('service-modal');
+      if (modal) modal.classList.add('hidden');
+      document.body.style.overflow = ''; // Unlock body scroll
+    }
+
+    // Close modal with Escape key
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeModal();
+    });
+
+    // Auto-refresh every 30 seconds
+    setInterval(refreshData, 30000);
+    
+    // Initial load
+    refreshData();
+  </script>
+</body>
+</html>
