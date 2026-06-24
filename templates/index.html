@@ -225,21 +225,69 @@
         </div>
       </div>
       
-      <!-- System Summary Diagnostics -->
-      <div class="glass-panel rounded-2xl p-6 flex flex-col justify-between">
-        <div>
-          <div class="flex items-center justify-between mb-5">
-            <h2 class="text-lg font-bold font-outfit text-slate-100 tracking-wide"><i class="fa-solid fa-cube mr-2 text-pink-400"></i> Service Status</h2>
-            <span class="text-xs text-slate-400" id="services-summary-ratio">0/0 Active</span>
+      <!-- Right Column Diagnostics Stack -->
+      <div class="flex flex-col gap-6 lg:col-span-1">
+        
+        <!-- System Summary Diagnostics -->
+        <div class="glass-panel rounded-2xl p-6 flex-1 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-5">
+              <h2 class="text-lg font-bold font-outfit text-slate-100 tracking-wide"><i class="fa-solid fa-cube mr-2 text-pink-400"></i> Service Status</h2>
+              <span class="text-xs text-slate-400" id="services-summary-ratio">0/0 Active</span>
+            </div>
+            <div class="space-y-4 terminal-scrollbar overflow-y-auto max-h-[180px] pr-1" id="diagnostics-panel">
+              <p class="text-slate-400 text-xs">Loading service components...</p>
+            </div>
           </div>
-          <div class="space-y-4 terminal-scrollbar overflow-y-auto max-h-[250px] pr-1" id="diagnostics-panel">
-            <p class="text-slate-400 text-xs">Loading service components...</p>
+          <div class="pt-4 border-t border-white/5 text-[10px] text-slate-500 flex items-center justify-between">
+            <span>Engine interval: 10m / 15m</span>
+            <span>TTL Logs: 1 Hour (Auto Expire)</span>
           </div>
         </div>
-        <div class="pt-4 border-t border-white/5 text-[10px] text-slate-500 flex items-center justify-between">
-          <span>Engine interval: 10m / 15m</span>
-          <span>TTL Logs: 1 Hour (Auto Expire)</span>
+
+        <!-- GitHub Actions Status Widget -->
+        <div class="glass-panel rounded-2xl p-6 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-4">
+              <h2 class="text-lg font-bold font-outfit text-slate-100 tracking-wide">
+                <i class="fa-brands fa-github mr-2 text-indigo-400"></i> Monitor Engine
+              </h2>
+              <span id="gha-status-badge" class="px-2 py-0.5 rounded-full border text-[9px] font-bold tracking-wider uppercase bg-slate-500/10 text-slate-400 border-white/5">
+                Unknown
+              </span>
+            </div>
+            
+            <!-- Warning Banner -->
+            <div id="gha-freshness-warning" class="hidden mb-4 p-3 bg-neonRed/10 border border-neonRed/20 rounded-xl flex items-center gap-2.5 text-neonRed">
+              <i class="fa-solid fa-triangle-exclamation text-sm animate-pulse"></i>
+              <div class="text-[10px] font-semibold leading-snug">
+                Warning: Monitoring is stale! (Last run > 15m ago)
+              </div>
+            </div>
+
+            <!-- Stats List -->
+            <div class="space-y-3.5 text-xs">
+              <div class="flex justify-between items-center bg-white/5 p-2.5 rounded-xl border border-white/5">
+                <span class="text-slate-400 font-medium font-outfit">Last Checked</span>
+                <span id="gha-last-checked" class="font-mono text-[10px] text-slate-300 font-semibold">-</span>
+              </div>
+              <div class="flex justify-between items-center bg-white/5 p-2.5 rounded-xl border border-white/5">
+                <span class="text-slate-400 font-medium font-outfit">Last Success</span>
+                <span id="gha-last-success" class="font-mono text-[10px] text-emerald-400 font-semibold">-</span>
+              </div>
+              <div class="flex justify-between items-center bg-white/5 p-2.5 rounded-xl border border-white/5">
+                <span class="text-slate-400 font-medium font-outfit">Last Failure</span>
+                <span id="gha-last-failure" class="font-mono text-[10px] text-rose-400 font-semibold">-</span>
+              </div>
+            </div>
+          </div>
+          
+          <div class="pt-4 border-t border-white/5 text-[10px] text-slate-500 flex items-center justify-between mt-4">
+            <span>Workflow: Every 5 Mins</span>
+            <span id="gha-freshness-text" class="font-mono text-slate-400">Freshness: --</span>
+          </div>
         </div>
+
       </div>
     </div>
 
@@ -406,7 +454,7 @@
       if (refreshIcon) refreshIcon.classList.add('fa-spin');
       
       try {
-        await Promise.all([loadStatus(), loadLogs()]);
+        await Promise.all([loadStatus(), loadLogs(), loadGitHubActionsStatus()]);
         addToTerminal("System status and database logs synchronized successfully.", "success");
       } catch (err) {
         console.error('Refresh failed:', err);
@@ -1109,6 +1157,67 @@
     window.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') closeModal();
     });
+
+    async function loadGitHubActionsStatus() {
+      try {
+        const res = await fetch('/api/github-actions/status');
+        if (!res.ok) {
+          console.error("Failed to fetch GHA status");
+          return;
+        }
+        const data = await res.json();
+        
+        const badge = document.getElementById('gha-status-badge');
+        const lastChecked = document.getElementById('gha-last-checked');
+        const lastSuccess = document.getElementById('gha-last-success');
+        const lastFailure = document.getElementById('gha-last-failure');
+        const warningDiv = document.getElementById('gha-freshness-warning');
+        const freshnessText = document.getElementById('gha-freshness-text');
+        
+        if (!badge || !lastChecked || !lastSuccess || !lastFailure || !warningDiv || !freshnessText) return;
+        
+        // Update text
+        lastChecked.textContent = formatIST(data.last_execution_time);
+        lastSuccess.textContent = formatIST(data.last_success_time);
+        lastFailure.textContent = formatIST(data.last_failure_time);
+        
+        // Update badge
+        const status = data.last_status ? data.last_status.toUpperCase() : 'UNKNOWN';
+        badge.textContent = status;
+        
+        if (status === 'SUCCESS') {
+          badge.className = "px-2 py-0.5 rounded-full border text-[9px] font-bold tracking-wider uppercase bg-neonGreen/10 text-neonGreen border-neonGreen/20";
+        } else if (status === 'FAILED') {
+          badge.className = "px-2 py-0.5 rounded-full border text-[9px] font-bold tracking-wider uppercase bg-neonRed/10 text-neonRed border-neonRed/20";
+        } else if (status === 'RUNNING') {
+          badge.className = "px-2 py-0.5 rounded-full border text-[9px] font-bold tracking-wider uppercase bg-indigo-600/10 text-indigo-400 border-indigo-500/20 animate-pulse";
+        } else {
+          badge.className = "px-2 py-0.5 rounded-full border text-[9px] font-bold tracking-wider uppercase bg-slate-500/10 text-slate-400 border-white/5";
+        }
+        
+        // Check freshness
+        if (data.last_execution_time) {
+          const runDate = new Date(data.last_execution_time);
+          const diffMs = new Date() - runDate;
+          const diffMins = diffMs / 1000 / 60;
+          
+          freshnessText.textContent = `Freshness: ${diffMins.toFixed(1)}m ago`;
+          
+          if (diffMins > 15) {
+            warningDiv.classList.remove('hidden');
+            freshnessText.className = "font-mono text-rose-400 font-bold";
+          } else {
+            warningDiv.classList.add('hidden');
+            freshnessText.className = "font-mono text-slate-400";
+          }
+        } else {
+          freshnessText.textContent = "Freshness: N/A";
+          warningDiv.classList.add('hidden');
+        }
+      } catch (err) {
+        console.error("Error in loadGitHubActionsStatus:", err);
+      }
+    }
 
     // Auto-refresh every 30 seconds
     setInterval(refreshData, 30000);
