@@ -1,0 +1,217 @@
+import time
+import requests
+import logging
+from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
+from pymongo import MongoClient, ASCENDING
+from config import SERVICES_CONFIG
+
+def is_within_allowed_hours(allowed_hours_ist, allowed_days):
+    """Check if current time is within active hours (IST) and active days."""
+    ist_now = datetime.now(ZoneInfo("Asia/Kolkata"))
+    
+    # Check weekday
+    if allowed_days is not None and ist_now.weekday() not in allowed_days:
+        return False
+        
+    # Check hours
+    if allowed_hours_ist is None:
+        return True
+        
+    hour = ist_now.hour
+    start, end = allowed_hours_ist
+    
+    if start <= end:
+        return start <= hour < end
+    else:
+        # Crosses midnight (e.g. 9 AM to 2 AM next day)
+        return hour >= start or hour < end
+
+def init_db_indexes(mongo_client):
+    """Create TTL index on expireAt field for all pinger log collections."""
+    logging.info("[MonitoringService] Initializing MongoDB TTL indexes...")
+    for s in SERVICES_CONFIG:
+        if s["type"] == "pinger":
+            try:
+                db = mongo_client[s["db_name"]]
+                collection = db[s["collection_name"]]
+                collection.create_index([("expireAt", ASCENDING)], expireAfterSeconds=0)
+                logging.info(f"[MonitoringService] TTL index verified on {s['db_name']}.{s['collection_name']}")
+            except Exception as e:
+                logging.error(f"[MonitoringService] Failed to create TTL index for {s['name']}: {e}")
+
+def execute_ping(service, mongo_client):
+    """Ping a service, record latency, parse metrics, and save to MongoDB collections."""
+    from services.analytics_service import parse_health_json
+    
+    name = service["name"]
+    url = service["url"]
+    db_name = service["db_name"]
+    col_name = service["collection_name"]
+    parse_analytics = service.get("parse_analytics", False)
+    
+    if not is_within_allowed_hours(service["allowed_hours_ist"], service["allowed_days"]):
+        logging.info(f"[MonitoringService] Skipping ping for {name} (outside active hours/days).")
+        now = datetime.now(timezone.utc)
+        
+        status_data = {
+            "name": name,
+            "type": "pinger",
+            "url": url,
+            "status": "SKIPPED",
+            "message": "Outside active schedule",
+            "last_checked": now,
+            "latency_ms": 0,
+            "db_ok": True,
+            "redis_ok": True
+        }
+        
+        history_data = {
+            "service_id": service.get("service_id", "quillix_api"),
+            "service_name": name,
+            "timestamp": now,
+            "status": "success",
+            "latency_ms": 0,
+            "failure_reason": "Skipped (Outside active schedule)"
+        }
+        
+        try:
+            db = mongo_client["ServerAutomation"]
+            db["latest_status"].update_one({"name": name}, {"$set": status_data}, upsert=True)
+            db["monitoring_history"].insert_one(history_data)
+        except Exception as e:
+            logging.error(f"[MonitoringService] Failed to update skipped status in DB for {name}: {e}")
+        return status_data
+        
+    now = datetime.now(timezone.utc)
+    expire_time = now + timedelta(hours=service.get("log_expiry_hours", 1))
+    
+    start_time = time.time()
+    try:
+        response = requests.get(url, timeout=60)
+        latency = (time.time() - start_time) * 1000
+        
+        status_code = response.status_code
+        status = "SUCCESS" if status_code == 200 else f"FAILED: {status_code}"
+        
+        response_text = response.text
+        parsed_json = None
+        analytics = {}
+        
+        try:
+            parsed_json = response.json()
+            if parse_analytics:
+                analytics = parse_health_json(name, parsed_json)
+        except Exception:
+            pass
+            
+        log_doc = {
+            "service": name,
+            "timestamp": now,
+            "status": status,
+            "status_code": status_code,
+            "latency_ms": latency,
+            "response": response_text[:1000],
+            "expireAt": expire_time
+        }
+        
+        if parse_analytics and analytics:
+            log_doc["analytics"] = analytics
+            
+        # Write to detailed logs
+        db = mongo_client[db_name]
+        db[col_name].insert_one(log_doc)
+        
+        logging.info(f"[MonitoringService] {name} -> {status} ({latency:.1f}ms)")
+        
+        # Write to latest status
+        status_data = {
+            "name": name,
+            "type": "pinger",
+            "url": url,
+            "status": status,
+            "status_code": status_code,
+            "latency_ms": latency,
+            "last_checked": now,
+            "db_ok": analytics.get("db_ok", True) if parse_analytics else True,
+            "redis_ok": analytics.get("redis_ok", True) if parse_analytics else True,
+            "uptime_seconds": analytics.get("uptime_seconds") if parse_analytics else None,
+            "details": analytics.get("details", {}) if parse_analytics else {}
+        }
+        
+        history_data = {
+            "service_id": service.get("service_id", "quillix_api"),
+            "service_name": name,
+            "timestamp": now,
+            "status": "success" if status_code == 200 else "failure",
+            "latency_ms": latency,
+            "failure_reason": None if status_code == 200 else f"HTTP status code {status_code}"
+        }
+        
+        sa_db = mongo_client["ServerAutomation"]
+        sa_db["latest_status"].update_one({"name": name}, {"$set": status_data}, upsert=True)
+        sa_db["monitoring_history"].insert_one(history_data)
+        
+        # Evaluate alert rules
+        try:
+            from services.alert_service import evaluate_ping_result
+            evaluate_ping_result(service, status_data, mongo_client)
+        except Exception as alert_err:
+            logging.error(f"[MonitoringService] Alert evaluation failed for {name}: {alert_err}")
+        
+        return status_data
+        
+    except requests.exceptions.RequestException as e:
+        latency = (time.time() - start_time) * 1000
+        logging.error(f"[MonitoringService] {name} -> CONNECTION ERROR: {e}")
+        
+        log_doc = {
+            "service": name,
+            "timestamp": now,
+            "status": "ERROR",
+            "status_code": None,
+            "latency_ms": latency,
+            "error": str(e),
+            "expireAt": expire_time
+        }
+        
+        # Write to detailed logs
+        db = mongo_client[db_name]
+        db[col_name].insert_one(log_doc)
+        
+        # Write to latest status
+        status_data = {
+            "name": name,
+            "type": "pinger",
+            "url": url,
+            "status": "ERROR",
+            "status_code": None,
+            "latency_ms": latency,
+            "last_checked": now,
+            "db_ok": False,
+            "redis_ok": False,
+            "error": str(e),
+            "details": {}
+        }
+        
+        history_data = {
+            "service_id": service.get("service_id", "quillix_api"),
+            "service_name": name,
+            "timestamp": now,
+            "status": "failure",
+            "latency_ms": latency,
+            "failure_reason": str(e)
+        }
+        
+        try:
+            sa_db = mongo_client["ServerAutomation"]
+            sa_db["latest_status"].update_one({"name": name}, {"$set": status_data}, upsert=True)
+            sa_db["monitoring_history"].insert_one(history_data)
+            
+            # Evaluate alert rules for error condition
+            from services.alert_service import evaluate_ping_result
+            evaluate_ping_result(service, status_data, mongo_client)
+        except Exception as db_err:
+            logging.error(f"[MonitoringService] Failed to write error status or evaluate alerts in DB: {db_err}")
+            
+        return status_data

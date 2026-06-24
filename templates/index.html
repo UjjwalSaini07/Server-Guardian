@@ -3,17 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Server Keep-Alive & Performance Engine</title>
+  <title>Server Guardian</title>
   <link rel="icon" type="image/png" href="/public/serverLogo.png">
   <!-- Google Fonts: Outfit & Space Mono -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Space+Mono:wght@400;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
-  <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <!-- FontAwesome Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   
   <script>
@@ -154,7 +151,7 @@
       >
       <div>
         <div class="flex items-center gap-2">
-          <h1 class="text-3xl font-extrabold font-outfit tracking-wide bg-gradient-to-r from-white via-indigo-100 to-indigo-300 bg-clip-text text-transparent">KeepAlive</h1>
+          <h1 class="text-3xl font-extrabold font-outfit tracking-wide bg-gradient-to-r from-white via-indigo-100 to-indigo-300 bg-clip-text text-transparent">Server Guardian</h1>
           <span class="text-[10px] font-mono tracking-widest text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-2 py-0.5 rounded uppercase">v2.1</span>
         </div>
         <p class="text-xs text-slate-400 mt-0.5 font-outfit">Enterprise Keep-Alive Engine & Analytics Platform</p>
@@ -200,13 +197,107 @@
       </div>
     </div>
 
-    <!-- Status Cards Grid -->
+    <!-- Dynamic Server Cards Grid -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8" id="servers-grid">
-      <!-- Skeleton Loading Cards -->
-      <div class="glass-card rounded-2xl p-6 h-48 shimmer"></div>
-      <div class="glass-card rounded-2xl p-6 h-48 shimmer"></div>
-      <div class="glass-card rounded-2xl p-6 h-48 shimmer"></div>
-      <div class="glass-card rounded-2xl p-6 h-48 shimmer"></div>
+    </div>
+    <!-- Enterprise Uptime & Reliability Dashboard -->
+    <div class="mb-8">
+      <div class="flex items-center justify-between mb-6">
+        <div>
+          <h2 class="text-xl font-bold font-outfit text-slate-100 tracking-wide">
+            <i class="fa-solid fa-shield-halved mr-2 text-indigo-400"></i> Uptime & Reliability Engine
+          </h2>
+          <p class="text-xs text-slate-400">Production-grade availability analytics & health trends</p>
+        </div>
+        <div class="flex gap-2">
+          <!-- Time range tabs -->
+          <button id="uptime-range-1dh" onclick="changeUptimeRange(1)" class="bg-slate-800 text-slate-400 border border-white/5 text-[10px] font-mono py-1 px-2.5 rounded-lg hover:bg-slate-700 hover:text-slate-300">24H</button>
+          <button id="uptime-range-7d" onclick="changeUptimeRange(7)" class="bg-slate-800 text-slate-400 border border-white/5 text-[10px] font-mono py-1 px-2.5 rounded-lg hover:bg-slate-700 hover:text-slate-300">7D</button>
+          <button id="uptime-range-30d" onclick="changeUptimeRange(30)" class="bg-indigo-600/30 text-indigo-300 border border-indigo-500/20 text-[10px] font-mono py-1 px-2.5 rounded-lg">30D</button>
+        </div>
+      </div>
+
+      <!-- Overview Cards Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <!-- Platform Uptime Card -->
+        <div class="glass-card rounded-2xl p-5 flex flex-col justify-between border-t-2 border-t-indigo-500/30">
+          <div>
+            <span class="text-[9px] uppercase text-slate-500 font-bold tracking-wider block">Platform Uptime</span>
+            <span id="overview-platform-uptime" class="text-2xl font-black font-outfit text-slate-100 tracking-tight block mt-1">100.00%</span>
+          </div>
+          <span class="text-[9px] text-slate-500 block mt-2">Weighted average</span>
+        </div>
+        
+        <!-- Best Service Card -->
+        <div class="glass-card rounded-2xl p-5 flex flex-col justify-between border-t-2 border-t-emerald-500/30">
+          <div>
+            <span class="text-[9px] uppercase text-slate-500 font-bold tracking-wider block">Most Reliable Service</span>
+            <span id="overview-best-service" class="text-sm font-extrabold font-outfit text-slate-100 truncate block mt-1.5">-</span>
+          </div>
+          <span class="text-[9px] text-emerald-400 font-semibold block mt-2"><i class="fa-solid fa-circle-check mr-1"></i> Highest availability</span>
+        </div>
+
+        <!-- Worst Service Card -->
+        <div class="glass-card rounded-2xl p-5 flex flex-col justify-between border-t-2 border-t-rose-500/30">
+          <div>
+            <span class="text-[9px] uppercase text-slate-500 font-bold tracking-wider block">Least Reliable Service</span>
+            <span id="overview-worst-service" class="text-sm font-extrabold font-outfit text-slate-100 truncate block mt-1.5">-</span>
+          </div>
+          <span id="overview-worst-status" class="text-[9px] text-rose-400 font-semibold block mt-2"><i class="fa-solid fa-triangle-exclamation mr-1"></i> Action recommended</span>
+        </div>
+
+        <!-- Total Checks Card -->
+        <div class="glass-card rounded-2xl p-5 flex flex-col justify-between border-t-2 border-t-pink-500/30">
+          <div>
+            <span class="text-[9px] uppercase text-slate-500 font-bold tracking-wider block">Total Audits</span>
+            <span id="overview-total-checks" class="text-2xl font-black font-outfit text-slate-100 tracking-tight block mt-1">0</span>
+          </div>
+          <span class="text-[9px] text-slate-500 block mt-2">Permanent records</span>
+        </div>
+      </div>
+
+      <!-- Trend and Aggregations Split -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- Availability Daily Trend -->
+        <div class="glass-panel rounded-2xl p-6 lg:col-span-2 relative overflow-hidden">
+          <div class="flex items-center justify-between mb-5">
+            <div>
+              <h3 class="text-base font-bold font-outfit text-slate-100 tracking-wide"><i class="fa-solid fa-chart-area mr-2 text-indigo-400"></i> Availability Trend</h3>
+              <p class="text-[10px] text-slate-500 mt-0.5">Daily platform availability percentage over the last 30 days</p>
+            </div>
+            <span class="text-[10px] font-mono text-indigo-400 bg-indigo-500/10 border border-indigo-500/15 py-1 px-2.5 rounded-lg">% availability scale</span>
+          </div>
+          <div class="h-[250px] w-full relative">
+            <canvas id="availabilityTrendChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Uptime Distribution -->
+        <div class="glass-panel rounded-2xl p-6 lg:col-span-1 relative overflow-hidden flex flex-col justify-between">
+          <div>
+            <h3 class="text-base font-bold font-outfit text-slate-100 tracking-wide"><i class="fa-solid fa-chart-pie mr-2 text-pink-400"></i> Uptime Distribution</h3>
+            <p class="text-[10px] text-slate-500 mt-0.5 font-outfit">Breakdown of services by reliability grade</p>
+          </div>
+          <div class="h-[180px] w-full relative my-4 flex items-center justify-center">
+            <canvas id="uptimeDistributionChart"></canvas>
+          </div>
+          <div class="pt-3 border-t border-white/5 text-[9px] text-slate-500 flex justify-between font-mono">
+            <span>Score-based grouping</span>
+            <span>Count unit</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Reliability Rankings Row -->
+      <div class="glass-panel rounded-2xl p-6 mt-8">
+        <div class="flex items-center justify-between mb-5">
+          <h3 class="text-base font-bold font-outfit text-slate-100 tracking-wide"><i class="fa-solid fa-ranking-star mr-2 text-pink-400"></i> Reliability Leaderboard</h3>
+          <span class="text-[10px] font-mono text-slate-500">Service availability and active trend</span>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="reliability-rankings-panel">
+          <p class="text-slate-400 text-xs col-span-full">Loading rankings...</p>
+        </div>
+      </div>
     </div>
 
     <!-- Charts & Analytics Section -->
@@ -225,21 +316,69 @@
         </div>
       </div>
       
-      <!-- System Summary Diagnostics -->
-      <div class="glass-panel rounded-2xl p-6 flex flex-col justify-between">
-        <div>
-          <div class="flex items-center justify-between mb-5">
-            <h2 class="text-lg font-bold font-outfit text-slate-100 tracking-wide"><i class="fa-solid fa-cube mr-2 text-pink-400"></i> Service Status</h2>
-            <span class="text-xs text-slate-400" id="services-summary-ratio">0/0 Active</span>
+      <!-- Right Column Diagnostics Stack -->
+      <div class="flex flex-col gap-6 lg:col-span-1">
+        
+        <!-- System Summary Diagnostics -->
+        <div class="glass-panel rounded-2xl p-6 flex-1 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-5">
+              <h2 class="text-lg font-bold font-outfit text-slate-100 tracking-wide"><i class="fa-solid fa-cube mr-2 text-pink-400"></i> Service Status</h2>
+              <span class="text-xs text-slate-400" id="services-summary-ratio">0/0 Active</span>
+            </div>
+            <div class="space-y-4 terminal-scrollbar overflow-y-auto max-h-[180px] pr-1" id="diagnostics-panel">
+              <p class="text-slate-400 text-xs">Loading service components...</p>
+            </div>
           </div>
-          <div class="space-y-4 terminal-scrollbar overflow-y-auto max-h-[250px] pr-1" id="diagnostics-panel">
-            <p class="text-slate-400 text-xs">Loading service components...</p>
+          <div class="pt-4 border-t border-white/5 text-[10px] text-slate-500 flex items-center justify-between">
+            <span>Engine interval: 10m / 15m</span>
+            <span>TTL Logs: 1 Hour (Auto Expire)</span>
           </div>
         </div>
-        <div class="pt-4 border-t border-white/5 text-[10px] text-slate-500 flex items-center justify-between">
-          <span>Engine interval: 10m / 15m</span>
-          <span>TTL Logs: 1 Hour (Auto Expire)</span>
+
+        <!-- GitHub Actions Status Widget -->
+        <div class="glass-panel rounded-2xl p-6 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-4">
+              <h2 class="text-lg font-bold font-outfit text-slate-100 tracking-wide">
+                <i class="fa-brands fa-github mr-2 text-indigo-400"></i> Monitor Engine
+              </h2>
+              <span id="gha-status-badge" class="px-2 py-0.5 rounded-full border text-[9px] font-bold tracking-wider uppercase bg-slate-500/10 text-slate-400 border-white/5">
+                Unknown
+              </span>
+            </div>
+            
+            <!-- Warning Banner -->
+            <div id="gha-freshness-warning" class="hidden mb-4 p-3 bg-neonRed/10 border border-neonRed/20 rounded-xl flex items-center gap-2.5 text-neonRed">
+              <i class="fa-solid fa-triangle-exclamation text-sm animate-pulse"></i>
+              <div class="text-[10px] font-semibold leading-snug">
+                Warning: Monitoring is stale! (Last run > 15m ago)
+              </div>
+            </div>
+
+            <!-- Stats List -->
+            <div class="space-y-3.5 text-xs">
+              <div class="flex justify-between items-center bg-white/5 p-2.5 rounded-xl border border-white/5">
+                <span class="text-slate-400 font-medium font-outfit">Last Checked</span>
+                <span id="gha-last-checked" class="font-mono text-[10px] text-slate-300 font-semibold">-</span>
+              </div>
+              <div class="flex justify-between items-center bg-white/5 p-2.5 rounded-xl border border-white/5">
+                <span class="text-slate-400 font-medium font-outfit">Last Success</span>
+                <span id="gha-last-success" class="font-mono text-[10px] text-emerald-400 font-semibold">-</span>
+              </div>
+              <div class="flex justify-between items-center bg-white/5 p-2.5 rounded-xl border border-white/5">
+                <span class="text-slate-400 font-medium font-outfit">Last Failure</span>
+                <span id="gha-last-failure" class="font-mono text-[10px] text-rose-400 font-semibold">-</span>
+              </div>
+            </div>
+          </div>
+          
+          <div class="pt-4 border-t border-white/5 text-[10px] text-slate-500 flex items-center justify-between mt-4">
+            <span>Workflow: Every 5 Mins</span>
+            <span id="gha-freshness-text" class="font-mono text-slate-400">Freshness: --</span>
+          </div>
         </div>
+
       </div>
     </div>
 
@@ -262,6 +401,99 @@
       <!-- Terminal scroll area -->
       <div id="terminal-stream" class="h-44 overflow-y-auto font-mono text-xs text-slate-300 space-y-1.5 terminal-scrollbar pr-2">
         <div class="text-[#27c93f]/80">[SYSTEM] Keep-Alive Engine v2.1 console initialized. Listening for logs...</div>
+      </div>
+    </div>
+
+    <!-- Alerts Center Section -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8" id="alerts-center-section">
+      <!-- Left Column: Active Incidents & Alert History -->
+      <div class="lg:col-span-2 flex flex-col gap-6">
+        <!-- Active Incidents Banner -->
+        <div id="active-incidents-container" class="hidden">
+          <div class="bg-neonRed/10 border border-neonRed/20 rounded-2xl p-5 flex flex-col gap-4 shadow-lg shadow-neonRed/5">
+            <div class="flex items-center gap-3">
+              <span class="relative flex h-2.5 w-2.5">
+                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-neonRed opacity-75"></span>
+                <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-neonRed"></span>
+              </span>
+              <h3 class="font-outfit font-bold text-xs uppercase text-neonRed tracking-wider">Active Outage Incidents</h3>
+            </div>
+            <div class="space-y-3" id="active-incidents-list">
+              <!-- Active items will be loaded dynamically -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Alert History Log -->
+        <div class="glass-panel rounded-2xl p-6">
+          <div class="flex items-center justify-between mb-5 pb-3 border-b border-white/5">
+            <div>
+              <h3 class="text-base font-bold font-outfit text-slate-100 tracking-wide">
+                <i class="fa-solid fa-bell mr-2 text-indigo-400"></i> Alert History Log
+              </h3>
+              <p class="text-[10px] text-slate-500 mt-0.5">Chronological record of service notifications and component alerts</p>
+            </div>
+            <span class="text-[10px] font-mono text-slate-500 bg-white/5 border border-white/5 py-1 px-2.5 rounded-lg">Last 100 events</span>
+          </div>
+          
+          <div class="overflow-y-auto max-h-[300px] pr-2 terminal-scrollbar space-y-3" id="alert-history-list">
+            <p class="text-slate-500 text-xs py-4 text-center">Loading alert history...</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column: Incident Analytics -->
+      <div class="lg:col-span-1">
+        <div class="glass-panel rounded-2xl p-6 h-full flex flex-col justify-between">
+          <div>
+            <div class="mb-5 pb-3 border-b border-white/5">
+              <h3 class="text-base font-bold font-outfit text-slate-100 tracking-wide">
+                <i class="fa-solid fa-chart-simple mr-2 text-pink-400"></i> Incident Analytics
+              </h3>
+              <p class="text-[10px] text-slate-500 mt-0.5">Platform alerting metrics and reliability indicators</p>
+            </div>
+            
+            <div class="space-y-4">
+              <!-- Total Alerts -->
+              <div class="bg-white/5 border border-white/5 p-4 rounded-xl flex items-center justify-between">
+                <div>
+                  <span class="text-[9px] uppercase text-slate-500 font-bold tracking-wider block">Total Incident Alerts</span>
+                  <span id="analytics-total-alerts" class="text-2xl font-black font-outfit text-slate-100 mt-1 block">-</span>
+                </div>
+                <div class="w-10 h-10 rounded-xl bg-pink-500/10 border border-pink-500/20 flex items-center justify-center text-pink-400">
+                  <i class="fa-solid fa-bell"></i>
+                </div>
+              </div>
+              
+              <!-- MTTD -->
+              <div class="bg-white/5 border border-white/5 p-4 rounded-xl flex items-center justify-between">
+                <div>
+                  <span class="text-[9px] uppercase text-slate-500 font-bold tracking-wider block">Mean Time to Detect (MTTD)</span>
+                  <span id="analytics-mttd" class="text-2xl font-black font-outfit text-slate-100 mt-1 block">-</span>
+                </div>
+                <div class="w-10 h-10 rounded-xl bg-neonOrange/10 border border-neonOrange/20 flex items-center justify-center text-neonOrange">
+                  <i class="fa-solid fa-eye animate-pulse"></i>
+                </div>
+              </div>
+              
+              <!-- MTTR -->
+              <div class="bg-white/5 border border-white/5 p-4 rounded-xl flex items-center justify-between">
+                <div>
+                  <span class="text-[9px] uppercase text-slate-500 font-bold tracking-wider block">Mean Time to Recover (MTTR)</span>
+                  <span id="analytics-mttr" class="text-2xl font-black font-outfit text-slate-100 mt-1 block">-</span>
+                </div>
+                <div class="w-10 h-10 rounded-xl bg-neonGreen/10 border border-neonGreen/20 flex items-center justify-center text-neonGreen">
+                  <i class="fa-solid fa-heart-pulse"></i>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="pt-4 border-t border-white/5 text-[9px] text-slate-500 flex justify-between font-mono mt-6">
+            <span>Calculated from MongoDB history</span>
+            <span>Auto-refreshing</span>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -349,6 +581,9 @@
 
   <script>
     let latencyChartInstance = null;
+    let availabilityChartInstance = null;
+    let distributionChartInstance = null;
+    let currentUptimeRangeDays = 30; // Default range
     let allLogs = [];
     let currentFilter = 'ALL';
     let cachedStatusMap = {};
@@ -406,7 +641,7 @@
       if (refreshIcon) refreshIcon.classList.add('fa-spin');
       
       try {
-        await Promise.all([loadStatus(), loadLogs()]);
+        await Promise.all([loadStatus(), loadLogs(), loadGitHubActionsStatus(), loadUptimeDashboard(), loadAlertsDashboard()]);
         addToTerminal("System status and database logs synchronized successfully.", "success");
       } catch (err) {
         console.error('Refresh failed:', err);
@@ -504,11 +739,24 @@
       setTimeout(() => div.remove(), 4000);
     }
 
+    // Helper to safely parse dates as UTC if they are naive
+    function parseUTCDate(isoString) {
+      if (!isoString) return new Date(NaN);
+      let formattedStr = isoString;
+      if (typeof isoString === 'string' && isoString.includes('T')) {
+        const timePart = isoString.split('T')[1] || '';
+        if (!isoString.endsWith('Z') && !timePart.includes('+') && !timePart.includes('-')) {
+          formattedStr = isoString + 'Z';
+        }
+      }
+      return new Date(formattedStr);
+    }
+
     // Format ISO string to IST local time
     function formatIST(isoString) {
       if (!isoString || isoString === 'Never') return 'Never';
       try {
-        const date = new Date(isoString);
+        const date = parseUTCDate(isoString);
         if (isNaN(date.getTime())) return 'Never';
         return date.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false, month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' });
       } catch (e) {
@@ -632,16 +880,39 @@
       const lastCheckTime = formatIST(server.last_checked);
       const nameId = (server.name || 'service').replace(/\s+/g, '-');
 
+      // Compute uptime badge style
+      let uptimeVal = 100.0;
+      if (currentUptimeRangeDays === 1) uptimeVal = server.uptime_24h !== undefined ? server.uptime_24h : 100.0;
+      else if (currentUptimeRangeDays === 7) uptimeVal = server.uptime_7d !== undefined ? server.uptime_7d : 100.0;
+      else if (currentUptimeRangeDays === 30) uptimeVal = server.uptime_30d !== undefined ? server.uptime_30d : 100.0;
+      else uptimeVal = server.uptime_all_time !== undefined ? server.uptime_all_time : 100.0;
+
+      let uptimeBadgeClass = '';
+      if (uptimeVal >= 99.99) {
+        uptimeBadgeClass = 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
+      } else if (uptimeVal >= 99.0) {
+        uptimeBadgeClass = 'bg-green-500/10 text-green-400 border-green-500/20';
+      } else if (uptimeVal >= 95.0) {
+        uptimeBadgeClass = 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20';
+      } else {
+        uptimeBadgeClass = 'bg-red-500/10 text-red-400 border-red-500/20';
+      }
+
       // 1. Create and Append Server Card
       const cardHtml = `
         <div onclick="openModal('${server.name}')" class="glass-card rounded-2xl p-6 relative overflow-hidden flex flex-col justify-between h-48 border-t-2 ${borderGlowClass} cursor-pointer">
           <div class="flex items-start justify-between gap-1">
             <div class="overflow-hidden">
               <h3 class="font-outfit font-bold text-base text-slate-100 truncate">${server.name || 'Unnamed'}</h3>
-              <p class="text-[10px] text-slate-500 truncate max-w-[180px]" title="${server.url || 'Scraper Service'}">${server.url || 'Local Scraping Engine'}</p>
+              <p class="text-[10px] text-slate-500 truncate max-w-[140px]" title="${server.url || 'Scraper Service'}">${server.url || 'Local Scraping Engine'}</p>
             </div>
-            <div class="flex items-center gap-1 px-2 py-0.5 rounded-full border text-[9px] font-bold tracking-wider uppercase shrink-0 ${statusBadgeClass}">
-              ${statusIcon} ${server.status || 'Pending'}
+            <div class="flex items-center gap-1 shrink-0">
+              <span class="px-1.5 py-0.5 rounded-full border text-[9px] font-bold tracking-wider uppercase ${uptimeBadgeClass}">
+                ${uptimeVal.toFixed(2)}%
+              </span>
+              <div class="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full border text-[9px] font-bold tracking-wider uppercase shrink-0 ${statusBadgeClass}">
+                ${statusIcon} ${server.status || 'Pending'}
+              </div>
             </div>
           </div>
           
@@ -1109,6 +1380,483 @@
     window.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') closeModal();
     });
+
+    async function loadGitHubActionsStatus() {
+      try {
+        const res = await fetch('/api/github-actions/status');
+        if (!res.ok) {
+          console.error("Failed to fetch GHA status");
+          return;
+        }
+        const data = await res.json();
+        
+        const badge = document.getElementById('gha-status-badge');
+        const lastChecked = document.getElementById('gha-last-checked');
+        const lastSuccess = document.getElementById('gha-last-success');
+        const lastFailure = document.getElementById('gha-last-failure');
+        const warningDiv = document.getElementById('gha-freshness-warning');
+        const freshnessText = document.getElementById('gha-freshness-text');
+        
+        if (!badge || !lastChecked || !lastSuccess || !lastFailure || !warningDiv || !freshnessText) return;
+        
+        // Update text
+        lastChecked.textContent = formatIST(data.last_execution_time);
+        lastSuccess.textContent = formatIST(data.last_success_time);
+        lastFailure.textContent = formatIST(data.last_failure_time);
+        
+        // Update badge
+        const status = data.last_status ? data.last_status.toUpperCase() : 'UNKNOWN';
+        badge.textContent = status;
+        
+        if (status === 'SUCCESS') {
+          badge.className = "px-2 py-0.5 rounded-full border text-[9px] font-bold tracking-wider uppercase bg-neonGreen/10 text-neonGreen border-neonGreen/20";
+        } else if (status === 'FAILED') {
+          badge.className = "px-2 py-0.5 rounded-full border text-[9px] font-bold tracking-wider uppercase bg-neonRed/10 text-neonRed border-neonRed/20";
+        } else if (status === 'RUNNING') {
+          badge.className = "px-2 py-0.5 rounded-full border text-[9px] font-bold tracking-wider uppercase bg-indigo-600/10 text-indigo-400 border-indigo-500/20 animate-pulse";
+        } else {
+          badge.className = "px-2 py-0.5 rounded-full border text-[9px] font-bold tracking-wider uppercase bg-slate-500/10 text-slate-400 border-white/5";
+        }
+        
+        // Check freshness
+        if (data.last_execution_time) {
+          const runDate = parseUTCDate(data.last_execution_time);
+          const diffMs = new Date() - runDate;
+          const diffMins = diffMs / 1000 / 60;
+          
+          freshnessText.textContent = `Freshness: ${diffMins.toFixed(1)}m ago`;
+          
+          if (diffMins > 15) {
+            warningDiv.classList.remove('hidden');
+            freshnessText.className = "font-mono text-rose-400 font-bold";
+          } else {
+            warningDiv.classList.add('hidden');
+            freshnessText.className = "font-mono text-slate-400";
+          }
+        } else {
+          freshnessText.textContent = "Freshness: N/A";
+          warningDiv.classList.add('hidden');
+        }
+      } catch (err) {
+        console.error("Error in loadGitHubActionsStatus:", err);
+      }
+    }
+    async function loadUptimeDashboard() {
+      try {
+        // 1. Fetch overview stats
+        const overviewRes = await fetch('/api/uptime/overview');
+        if (overviewRes.ok) {
+          const data = await overviewRes.json();
+          document.getElementById('overview-platform-uptime').textContent = data.overall_platform_uptime.toFixed(2) + '%';
+          document.getElementById('overview-best-service').textContent = data.best_service;
+          document.getElementById('overview-worst-service').textContent = data.worst_service;
+          document.getElementById('overview-total-checks').textContent = data.total_checks.toLocaleString();
+          
+          const worstStatus = document.getElementById('overview-worst-status');
+          if (data.overall_platform_uptime >= 99.0) {
+            worstStatus.className = "text-[9px] text-emerald-400 font-semibold block mt-2";
+            worstStatus.innerHTML = `<i class="fa-solid fa-circle-check mr-1"></i> Platform stable`;
+          } else {
+            worstStatus.className = "text-[9px] text-rose-400 font-semibold block mt-2";
+            worstStatus.innerHTML = `<i class="fa-solid fa-triangle-exclamation mr-1"></i> Action recommended`;
+          }
+        }
+
+        // 2. Render Reliability Rankings
+        renderReliabilityRankings();
+
+        // 3. Fetch and Render Uptime Distribution Chart
+        renderUptimeDistributionChart();
+
+        // 4. Fetch and Render Availability Trend Chart
+        const historyRes = await fetch('/api/uptime/history');
+        if (historyRes.ok) {
+          const historyData = await historyRes.json();
+          renderAvailabilityTrendChart(historyData);
+        }
+      } catch (err) {
+        console.error("Error in loadUptimeDashboard:", err);
+      }
+    }
+
+    function changeUptimeRange(days) {
+      currentUptimeRangeDays = days;
+      
+      const ranges = [1, 7, 30];
+      ranges.forEach(r => {
+        const btnId = `uptime-range-${r}d` + (r === 1 ? 'h' : '');
+        const btn = document.getElementById(btnId);
+        if (btn) {
+          if (r === days) {
+            btn.className = "bg-indigo-600/30 text-indigo-300 border border-indigo-500/20 text-[10px] font-mono py-1 px-2.5 rounded-lg";
+          } else {
+            btn.className = "bg-slate-800 text-slate-400 border border-white/5 text-[10px] font-mono py-1 px-2.5 rounded-lg hover:bg-slate-700 hover:text-slate-300";
+          }
+        }
+      });
+      
+      // Re-render components with the selected range
+      renderFilteredDashboard();
+      renderReliabilityRankings();
+      renderUptimeDistributionChart();
+    }
+
+    function renderReliabilityRankings() {
+      const panel = document.getElementById('reliability-rankings-panel');
+      if (!panel) return;
+      
+      panel.innerHTML = '';
+      
+      const services = Object.values(cachedStatusMap);
+      if (services.length === 0) {
+        panel.innerHTML = `<p class="text-slate-500 text-xs col-span-full">No service data available.</p>`;
+        return;
+      }
+      
+      services.sort((a, b) => {
+        let valA = 100.0, valB = 100.0;
+        if (currentUptimeRangeDays === 1) {
+          valA = a.uptime_24h !== undefined ? a.uptime_24h : 100.0;
+          valB = b.uptime_24h !== undefined ? b.uptime_24h : 100.0;
+        } else if (currentUptimeRangeDays === 7) {
+          valA = a.uptime_7d !== undefined ? a.uptime_7d : 100.0;
+          valB = b.uptime_7d !== undefined ? b.uptime_7d : 100.0;
+        } else if (currentUptimeRangeDays === 30) {
+          valA = a.uptime_30d !== undefined ? a.uptime_30d : 100.0;
+          valB = b.uptime_30d !== undefined ? b.uptime_30d : 100.0;
+        } else {
+          valA = a.uptime_all_time !== undefined ? a.uptime_all_time : 100.0;
+          valB = b.uptime_all_time !== undefined ? b.uptime_all_time : 100.0;
+        }
+        return valB - valA;
+      });
+      
+      services.forEach((s, idx) => {
+        let val = 100.0;
+        if (currentUptimeRangeDays === 1) val = s.uptime_24h !== undefined ? s.uptime_24h : 100.0;
+        else if (currentUptimeRangeDays === 7) val = s.uptime_7d !== undefined ? s.uptime_7d : 100.0;
+        else if (currentUptimeRangeDays === 30) val = s.uptime_30d !== undefined ? s.uptime_30d : 100.0;
+        else val = s.uptime_all_time !== undefined ? s.uptime_all_time : 100.0;
+        
+        let colorClass = 'text-emerald-400';
+        let ratingText = s.reliability_rating || 'Excellent';
+        if (ratingText === 'Excellent') colorClass = 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20';
+        else if (ratingText === 'Stable') colorClass = 'text-green-400 bg-green-500/10 border-green-500/20';
+        else if (ratingText === 'Warning') colorClass = 'text-yellow-400 bg-yellow-500/10 border-yellow-500/20';
+        else colorClass = 'text-rose-400 bg-rose-500/10 border-rose-500/20';
+        
+        const trend = s.trend_indicator || '→';
+        let trendColor = 'text-slate-400';
+        if (trend === '↑') trendColor = 'text-emerald-400';
+        else if (trend === '↓') trendColor = 'text-rose-400';
+        
+        const html = `
+          <div class="flex items-center justify-between bg-white/5 p-3 rounded-xl border border-white/5">
+            <div class="flex items-center gap-2">
+              <span class="font-mono text-xs text-slate-500 font-bold">#${idx + 1}</span>
+              <span class="text-xs font-semibold font-outfit text-slate-200">${s.name}</span>
+            </div>
+            <div class="flex items-center gap-3 text-[10px] font-mono">
+              <span class="font-bold text-slate-200">${val.toFixed(2)}%</span>
+              <span class="border px-2 py-0.5 rounded ${colorClass}">${ratingText}</span>
+              <span class="${trendColor} font-bold text-xs">${trend}</span>
+            </div>
+          </div>
+        `;
+        panel.insertAdjacentHTML('beforeend', html);
+      });
+    }
+
+    function renderUptimeDistributionChart() {
+      try {
+        const services = Object.values(cachedStatusMap);
+        let excellent = 0, stable = 0, warning = 0, critical = 0;
+        
+        services.forEach(s => {
+          let val = 100.0;
+          if (currentUptimeRangeDays === 1) val = s.uptime_24h !== undefined ? s.uptime_24h : 100.0;
+          else if (currentUptimeRangeDays === 7) val = s.uptime_7d !== undefined ? s.uptime_7d : 100.0;
+          else if (currentUptimeRangeDays === 30) val = s.uptime_30d !== undefined ? s.uptime_30d : 100.0;
+          else val = s.uptime_all_time !== undefined ? s.uptime_all_time : 100.0;
+          
+          if (val >= 100.0) excellent++;
+          else if (val >= 95.0) stable++;
+          else if (val >= 90.0) warning++;
+          else critical++;
+        });
+        
+        const canvas = document.getElementById('uptimeDistributionChart');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        
+        if (distributionChartInstance) {
+          distributionChartInstance.destroy();
+        }
+        
+        if (typeof Chart === 'undefined') return;
+        
+        distributionChartInstance = new Chart(ctx, {
+          type: 'doughnut',
+          data: {
+            labels: ['Excellent (100%)', 'Stable (95-99%)', 'Warning (90-94%)', 'Critical (<90%)'],
+            datasets: [{
+              data: [excellent, stable, warning, critical],
+              backgroundColor: ['#10b981', '#6366f1', '#f59e0b', '#f43f5e'],
+              borderColor: '#0a0a0c',
+              borderWidth: 2
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '70%',
+            plugins: {
+              legend: {
+                position: 'bottom',
+                labels: {
+                  color: '#94a3b8',
+                  boxWidth: 8,
+                  boxHeight: 8,
+                  padding: 8,
+                  font: { family: 'Outfit', size: 9 }
+                }
+              },
+              tooltip: {
+                backgroundColor: 'rgba(10, 10, 12, 0.95)',
+                titleColor: '#e2e8f0',
+                bodyColor: '#e2e8f0',
+                borderWidth: 1,
+                borderColor: 'rgba(255,255,255,0.08)',
+                padding: 10,
+                callbacks: {
+                  label: function(context) {
+                    return ` Services: ${context.raw}`;
+                  }
+                }
+              }
+            }
+          }
+        });
+      } catch (err) {
+        console.error("Error in renderUptimeDistributionChart:", err);
+      }
+    }
+
+    function renderAvailabilityTrendChart(historyData) {
+      try {
+        const dates = historyData.map(d => d.date);
+        const uptimes = historyData.map(d => d.uptime);
+        
+        const minVal = uptimes.length > 0 ? Math.min(...uptimes) : 90.0;
+        const yMin = minVal < 90.0 ? Math.max(0, Math.floor(minVal - 10)) : 90.0;
+        
+        const canvas = document.getElementById('availabilityTrendChart');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        
+        if (availabilityChartInstance) {
+          availabilityChartInstance.destroy();
+        }
+        
+        if (typeof Chart === 'undefined') {
+          console.warn("Chart.js not loaded.");
+          return;
+        }
+        
+        availabilityChartInstance = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: dates,
+            datasets: [{
+              label: 'Platform Availability',
+              data: uptimes,
+              borderColor: '#6366f1',
+              backgroundColor: 'rgba(99, 102, 241, 0.08)',
+              borderWidth: 2,
+              tension: 0.35,
+              pointRadius: 2,
+              pointBackgroundColor: '#6366f1',
+              pointHoverRadius: 4,
+              fill: true
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                backgroundColor: 'rgba(10, 10, 12, 0.95)',
+                titleColor: '#e2e8f0',
+                bodyColor: '#e2e8f0',
+                borderWidth: 1,
+                borderColor: 'rgba(255,255,255,0.08)',
+                padding: 10,
+                callbacks: {
+                  label: function(context) {
+                    return ` Availability: ${context.raw.toFixed(2)}%`;
+                  }
+                }
+              }
+            },
+            scales: {
+              x: {
+                grid: { color: 'rgba(255,255,255,0.02)' },
+                ticks: { color: '#64748b', font: { family: 'Space Mono', size: 8 } }
+              },
+              y: {
+                min: yMin,
+                max: 100.0,
+                grid: { color: 'rgba(255,255,255,0.04)' },
+                ticks: { 
+                  color: '#64748b', 
+                  font: { family: 'Space Mono', size: 8 },
+                  callback: value => value + '%'
+                }
+              }
+            }
+          }
+        });
+      } catch (err) {
+        console.error("Error in renderAvailabilityTrendChart:", err);
+      }
+    }
+
+    // Alerts Center dashboard functions
+    async function loadAlertsDashboard() {
+      try {
+        const alertsRes = await fetch('/api/alerts');
+        if (alertsRes.ok) {
+          const data = await alertsRes.json();
+          renderActiveIncidents(data.active_incidents);
+          renderAlertHistory(data.history);
+        }
+
+        const analyticsRes = await fetch('/api/alerts/analytics');
+        if (analyticsRes.ok) {
+          const data = await analyticsRes.json();
+          renderAlertAnalytics(data);
+        }
+      } catch (err) {
+        console.error("Error in loadAlertsDashboard:", err);
+      }
+    }
+
+    function renderActiveIncidents(activeIncidents) {
+      const container = document.getElementById('active-incidents-container');
+      const list = document.getElementById('active-incidents-list');
+      if (!container || !list) return;
+
+      if (!activeIncidents || activeIncidents.length === 0) {
+        container.classList.add('hidden');
+        list.innerHTML = '';
+        return;
+      }
+
+      container.classList.remove('hidden');
+      list.innerHTML = activeIncidents.map(incident => {
+        const timeStr = formatIST(incident.incident_started_at);
+        return `
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between bg-black/45 border border-neonRed/15 p-3.5 rounded-xl gap-2 hover:border-neonRed/30 transition-all">
+            <div>
+              <span class="text-xs font-bold font-outfit text-slate-100">${incident.service_name}</span>
+              <p class="text-[11px] text-slate-400 mt-1"><i class="fa-solid fa-circle-exclamation text-neonRed mr-1.5"></i> ${incident.message}</p>
+            </div>
+            <div class="text-left sm:text-right shrink-0">
+              <span class="text-[9px] uppercase font-bold text-neonRed/90 block">Downtime Started</span>
+              <span class="text-[10px] font-mono text-slate-400 mt-0.5 block">${timeStr}</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderAlertHistory(history) {
+      const list = document.getElementById('alert-history-list');
+      if (!list) return;
+
+      if (!history || history.length === 0) {
+        list.innerHTML = `<p class="text-slate-500 text-xs py-8 text-center font-outfit">No alert logs recorded yet.</p>`;
+        return;
+      }
+
+      list.innerHTML = history.map(alert => {
+        let bgClass = 'bg-slate-500/10 text-slate-400';
+        let iconClass = 'fa-solid fa-circle-info';
+        let badgeClass = 'bg-slate-500/10 text-slate-400 border border-slate-500/15';
+
+        const severity = (alert.severity || '').toLowerCase();
+        if (severity === 'critical') {
+          bgClass = 'bg-neonRed/15 text-neonRed';
+          iconClass = 'fa-solid fa-triangle-exclamation';
+          badgeClass = 'bg-neonRed/10 text-neonRed/90 border border-neonRed/20';
+        } else if (severity === 'warning') {
+          bgClass = 'bg-neonOrange/15 text-neonOrange';
+          iconClass = 'fa-solid fa-circle-exclamation';
+          badgeClass = 'bg-neonOrange/10 text-neonOrange/90 border border-neonOrange/20';
+        } else if (severity === 'success') {
+          bgClass = 'bg-neonGreen/15 text-neonGreen';
+          iconClass = 'fa-solid fa-circle-check';
+          badgeClass = 'bg-neonGreen/10 text-neonGreen/90 border border-neonGreen/20';
+        } else if (severity === 'info') {
+          bgClass = 'bg-neonIndigo/15 text-neonIndigo';
+          iconClass = 'fa-solid fa-circle-info';
+          badgeClass = 'bg-neonIndigo/10 text-neonIndigo/90 border border-neonIndigo/15';
+        }
+
+        const dateStr = formatIST(alert.created_at);
+        const emailBadge = alert.sent 
+          ? `<span class="text-[8px] font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/15 px-1.5 py-0.5 rounded ml-2 inline-block shrink-0"><i class="fa-solid fa-envelope mr-1 text-[7px]"></i>EMAIL SENT</span>`
+          : '';
+
+        return `
+          <div class="flex items-start justify-between bg-white/[0.02] border border-white/5 hover:border-white/10 p-3.5 rounded-xl gap-4 transition-all">
+            <div class="flex items-start gap-3">
+              <div class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${bgClass}">
+                <i class="${iconClass}"></i>
+              </div>
+              <div class="min-w-0">
+                <div class="flex flex-wrap items-center gap-2">
+                  <span class="text-xs font-bold font-outfit text-slate-200 truncate max-w-[120px] sm:max-w-none">${alert.service_name || alert.service_id}</span>
+                  <span class="text-[9px] font-mono font-bold uppercase px-1.5 py-0.5 rounded tracking-wide ${badgeClass}">${alert.alert_type}</span>
+                  ${emailBadge}
+                </div>
+                <p class="text-[11px] text-slate-400 mt-1.5 leading-relaxed">${alert.message}</p>
+              </div>
+            </div>
+            <div class="text-right shrink-0">
+              <span class="text-[9px] font-mono text-slate-500">${dateStr}</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderAlertAnalytics(data) {
+      const totalAlertsEl = document.getElementById('analytics-total-alerts');
+      const mttdEl = document.getElementById('analytics-mttd');
+      const mttrEl = document.getElementById('analytics-mttr');
+
+      if (totalAlertsEl) {
+        totalAlertsEl.textContent = data.total_alerts.toLocaleString();
+      }
+
+      if (mttdEl) {
+        mttdEl.textContent = formatDuration(data.mean_time_to_detect_seconds);
+      }
+
+      if (mttrEl) {
+        mttrEl.textContent = formatDuration(data.mean_time_to_recover_seconds);
+      }
+    }
+
+    function formatDuration(seconds) {
+      if (seconds === undefined || seconds === null || seconds <= 0) return '0s';
+      if (seconds < 60) return seconds.toFixed(0) + 's';
+      const mins = Math.floor(seconds / 60);
+      const secs = Math.round(seconds % 60);
+      return secs > 0 ? `${mins}m ${secs}s` : `${mins}m`;
+    }
 
     // Auto-refresh every 30 seconds
     setInterval(refreshData, 30000);
