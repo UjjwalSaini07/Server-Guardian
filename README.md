@@ -1,305 +1,510 @@
-# ServerGuardian
+<div align="center">
 
-ServerGuardian is a production-oriented Python monitoring platform for keeping multiple backend services alive, collecting health telemetry, detecting incidents, and surfacing historical reliability analytics from MongoDB.
+# ⚡ ServerGuardian Pro
 
-It combines three main pieces:
+**Production-grade observability & incident response platform**
 
-* a FastAPI dashboard for live status and analytics
-* a GitHub Actions monitoring runner for scheduled checks
-* a MongoDB-backed data layer for logs, incidents, and uptime metrics
+![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-009688?style=for-the-badge&logo=fastapi&logoColor=white)
+![MongoDB](https://img.shields.io/badge/MongoDB-Atlas-47A248?style=for-the-badge&logo=mongodb&logoColor=white)
+![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-Automated-2088FF?style=for-the-badge&logo=github-actions&logoColor=white)
+![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)
 
-The current project is designed around monitored servers and an optional scraping worker.
+> Transform raw operational data into actionable intelligence — with real-time monitoring, deep health scoring, incident lifecycle management, executive reporting, and a stunning glassmorphism dashboard.
 
-## What This Project Does
+</div>
 
-ServerGuardian continuously:
+## 📖 Table of Contents
 
-* pings configured HTTP health endpoints
-* records latency, status codes, and response snippets
-* parses nested health signals for selected services
-* runs a stock-scraping worker during market hours
-* caches and aggregates uptime metrics
-* raises incident alerts and recovery notifications
-* exposes analytics APIs for uptime, latency, ranking, and platform health
-* serves a glassmorphism-style dashboard for operators
+- [What is ServerGuardian Pro?](#-what-is-serverguardian-pro)
+- [Platform Capabilities](#-platform-capabilities)
+- [Architecture](#-architecture)
+- [Dashboard Overview](#-dashboard-overview)
+- [Repository Structure](#-repository-structure)
+- [Data Model](#-data-model)
+- [API Reference](#-api-reference)
+- [Configuration](#-configuration)
+- [GitHub Actions Setup](#-github-actions-setup)
+- [Local Development](#-local-development)
+- [Docker Deployment](#-docker-deployment)
+- [Public Status Page](#-public-status-page)
+- [Troubleshooting](#-troubleshooting)
+- [Security](#-security)
+- [Author](#-author)
 
-## Architecture
+
+## 🔍 What is Server Guardian?
+
+Server Guardian is a self-hosted, production-oriented observability platform built in Python. It continuously monitors HTTP health endpoints, scores service quality, detects and tracks incidents, sends intelligent alerts, generates executive reports, and serves a live operator dashboard — all backed by MongoDB and automated through GitHub Actions.
+
+It is purpose-built around four pillars:
+
+| Pillar | Description |
+|---|---|
+| **Monitor** | Scheduled HTTP health checks via GitHub Actions cron (every 5 min) |
+| **Detect** | Multi-dimensional health scoring + automatic incident creation |
+| **Alert** | SMTP email notifications with deduplication, recovery alerts, and rate limiting |
+| **Observe** | Real-time glassmorphism dashboard + public status page + executive reports |
+
+
+## 🚀 Platform Capabilities
+
+### 🔁 Automated Monitoring
+- Scheduled HTTP health checks for each configured service (every 5 minutes via GitHub Actions)
+- Latency measurement in milliseconds per request
+- HTTP status code classification: `SUCCESS`, `FAILED`, `ERROR`, `SKIPPED`
+- Service schedule enforcement using IST (Asia/Kolkata) timezone
+- Per-service concurrency via Python threading
+
+### 🧠 Deep Health Check Engine
+- Multi-dimensional health scoring (0–100 composite score) per check:
+  - **HTTP validation** — status code, response time
+  - **JSON schema validation** — checks expected keys in the response body
+  - **Database sub-component** — parses nested `db` health signals
+  - **Cache sub-component** — parses nested `cache` health signals
+  - **Latency scoring** — configurable WARNING and CRITICAL thresholds
+- Health deductions logged with reason codes for every degradation
+
+### 🚨 Intelligent Alerting
+- Alert types: `SERVICE_DOWN`, `SERVICE_RECOVERED`, `HIGH_LATENCY`, `DB_FAILURE`, `CACHE_FAILURE`, `HEALTH_SCORE_DEGRADED`
+- Duplicate suppression — no spam during sustained outages
+- Recovery notifications with downtime duration
+- Configurable rate-limiting per service
+- All alerts persisted in MongoDB regardless of email availability
+
+### 📋 Incident Lifecycle Engine
+- Incidents automatically created on first failure detection
+- Full lifecycle: `open` → `acknowledged` → `resolved`
+- MTTD (Mean Time to Detect) computed from monitoring history
+- MTTR (Mean Time to Resolve) computed on resolution
+- Timeline events logged for every state transition
+- Incident acknowledgment via dashboard button
+
+### 📊 Analytics Engine
+- Per-service and platform-wide aggregation:
+  - Uptime % over 7, 14, 30-day windows
+  - Latency percentiles: avg, min, max, median, P95, P99
+  - Daily uptime trend series (30-day)
+  - Cross-service reliability leaderboard with trend indicators
+  - Platform executive summary (total checks, failure rate, avg latency)
+- All analytics powered by MongoDB aggregation pipelines (no Python-side data loading)
+- Reliability thresholds: `Excellent ≥ 99.5%`, `Good ≥ 97%`, `Warning ≥ 90%`, `Critical < 90%`
+
+### 📈 Executive Reporting
+- **Weekly reports** — 7-day service performance summary with SLA compliance
+- **Monthly reports** — 30-day executive summary with MTTR, incidents, and benchmarks
+- **Service benchmarking** — uptime rank, latency rank, incident frequency rank per service
+- Reports delivered via email and accessible via API
+- Auto-dispatched by `monitor_runner.py` on the configured UTC day/hour
+
+### 🌐 Public Status Page
+- Standalone `/status` route — no authentication required
+- Shows overall system health, per-service uptime, latency, last checked time
+- Lists active incidents and 30-day incident history table
+- Auto-refreshes every 60 seconds
+- All data server-rendered (single JSON injection, no extra API calls)
+
+### 📈 Stock Scraper (Optional)
+- Scrapes Indian stock market data from Screener.in
+- Respects weekday and IST trading-hour constraints
+- Stores results in `investiqdb.Stocks` MongoDB collection
+- Toggled via `ENABLE_STOCK_SCRAPER` environment variable
+
+
+## 🏗️ Architecture
+
+### System Overview
 
 ```mermaid
 graph TD
-    User[User in Browser] --> Dashboard[FastAPI Dashboard on :8080]
-    Dashboard --> Mongo[(MongoDB Atlas or Local MongoDB)]
+    Browser[Operator Browser] -->|HTTP :8080| Dashboard[FastAPI Dashboard]
+    PublicUser[Public User] -->|GET /status| Dashboard
 
-    GitHubActions[GitHub Actions Scheduler] --> Runner[monitor_runner.py]
-    Runner --> Pinger[execute_ping]
-    Runner --> Scraper[run_scraper]
-    Pinger --> Mongo
-    Scraper --> Mongo
-    Pinger --> Alerts[Alert Evaluation]
-    Alerts --> Email[SMTP Email Provider]
+    Dashboard -->|Read| Mongo[(MongoDB Atlas)]
+    Dashboard -->|Render| Templates[Jinja2 Templates]
 
-    Dashboard --> Analytics[Analytics APIs]
-    Analytics --> Mongo
-    Dashboard --> Static[Static assets and HTML]
+    GHA[GitHub Actions - Every 5 min] -->|Runs| Runner[monitor_runner.py]
+    Runner -->|Ping| Services[Monitored HTTP Services]
+    Runner -->|Write| Mongo
+    Runner -->|Evaluate| AlertEngine[Alert & Incident Engine]
+    AlertEngine -->|Send| SMTP[SMTP Email]
+    AlertEngine -->|Write| Mongo
+
+    Runner -->|Optional| Scraper[Stock Scraper]
+    Scraper -->|Upsert| InvestiqDB[(investiqdb.Stocks)]
 ```
 
-## Product Views
-
-### System Context
-
-```mermaid
-graph TD
-    Operator[Operator / DevOps] --> UI[ServerGuardian Dashboard]
-    Scheduler[GitHub Actions Cron] --> Runner[Monitoring Runner]
-    UI --> DB[(MongoDB)]
-    Runner --> DB
-    UI --> Email[SMTP Notifications]
-    Runner --> External[Monitored Services]
-    External --> Runner
-```
-
-### Monitoring Lifecycle
+### Monitoring Lifecycle (Sequence)
 
 ```mermaid
 sequenceDiagram
     participant GH as GitHub Actions
     participant MR as monitor_runner.py
-    participant MS as Monitoring Service
+    participant MS as monitoring_service
+    participant HC as health_check_service
+    participant IS as incident_service
+    participant AL as alert_service
+    participant NS as notification_service
     participant DB as MongoDB
-    participant AL as Alert Service
-    participant EM as Email Provider
 
-    GH->>MR: Trigger scheduled run
-    MR->>MS: execute_ping(service)
-    MS->>DB: Write latest_status and monitoring_history
-    MS->>AL: evaluate_ping_result(...)
-    AL->>DB: Update alert_state and alerts
-    AL->>EM: Send notification when needed
-    MR->>DB: Aggregate uptime metrics
+    GH->>MR: Trigger scheduled run (every 5 min)
+    MR->>MS: execute_ping(service_config)
+    MS->>HC: compute_health_score(response)
+    HC-->>MS: HealthCheckResult (0–100 score)
+    MS->>DB: Write latest_status + monitoring_history
+    MS->>AL: evaluate_ping_result(result, service)
+    AL->>IS: open_incident() or resolve_incident()
+    IS->>DB: Write incidents collection
+    AL->>NS: dispatch_alert_if_needed()
+    NS->>DB: Write alerts collection
+    NS-->>GH: Send email via SMTP (if configured)
+    MR->>DB: Aggregate uptime_metrics cache
+    MR->>DB: Write github_actions_status
 ```
 
 ### Deployment Topology
 
 ```mermaid
 graph TD
-    Source[GitHub Repository] --> Actions[GitHub Actions]
-    Source --> App[FastAPI Dashboard Container]
-    Actions --> Worker[monitor_runner.py]
-    Worker --> Atlas[(MongoDB Atlas)]
-    App --> Atlas
-    App --> Browser[User Browser]
+    Repo[GitHub Repository] -->|Push| GHA[GitHub Actions]
+    Repo -->|Deploy| Render[FastAPI on Render / VPS]
+    GHA -->|Cron every 5 min| Runner[monitor_runner.py on ubuntu-latest]
+    Runner -->|Read/Write| Atlas[(MongoDB Atlas)]
+    Render -->|Read| Atlas
+    Render -->|Serve| Browser[Operator & Public Users]
 ```
 
-## Key Capabilities
 
-### Monitoring
+## 🖥️ Dashboard Overview
 
-* Scheduled HTTP checks for each configured service
-* Request latency measurement in milliseconds
-* HTTP status classification into success, failure, error, or skipped
-* Service schedule enforcement using Asia/Kolkata time
-* Per-service runtime metadata in MongoDB
+The operator dashboard at `http://localhost:8080` (or your deployed URL) provides:
 
-### Alerting
+| Section | Description |
+|---|---|
+| **Live Service Tiles** | Real-time status, uptime %, latency, last-checked time (IST 12hr) |
+| **Monitor Engine** | GitHub Actions runner status, freshness indicator, last success/failure |
+| **Analytics Engine** | Platform health overview with uptime, latency, failure rate KPIs |
+| **Latency Intelligence** | Per-service average, P95, P99 latency with trend |
+| **Reliability Leaderboard** | Cross-service ranking table with trend indicators |
+| **Platform Health Charts** | 30-day uptime trend + success/failure stacked bar chart |
+| **Incident Timeline** | Active and historical incidents with MTTD, MTTR, severity, status |
+| **Alert History Log** | Chronological alert feed with service, type, reason, timestamp |
+| **Event Stream Console** | Terminal-style live log of all dashboard activity |
+| **Executive Reports** | Weekly/monthly report KPIs + service benchmarking table |
+| **Public Status Page** | Separate `/status` route for public-facing uptime visibility |
 
-* Service-down alerts
-* Recovery alerts
-* High-latency alerts
-* Database and cache sub-component failure alerts for parsed services
-* Health-score degradation alerts
-* Duplicate suppression and basic rate limiting
+All timestamps are displayed in **IST (Asia/Kolkata) timezone in 12-hour AM/PM format**.
 
-### Analytics
 
-* Uptime by service and time window
-* Latency percentiles: average, min, max, median, P95, P99
-* Daily trend series
-* Cross-service reliability ranking
-* Service reliability reports
-* Platform-wide executive summary
+## 📁 Repository Structure
 
-### Scraping
+```
+ServerGuardian/
+│
+├── main.py                          # Entrypoint — starts FastAPI + creates MongoDB indexes
+├── dashboard.py                     # FastAPI app — all routes, UI and API (29 endpoints)
+├── monitor_runner.py                # GitHub Actions runner — ping, alert, report dispatch
+├── config.py                        # SERVICES_CONFIG, env-driven thresholds, health schemas
+├── requirements.txt                 # Python dependencies
+├── Dockerfile                       # Container image definition
+├── docker-compose.yml               # Compose setup for local containerized run
+│
+├── services/
+│   ├── monitoring_service.py        # HTTP ping execution, result persistence
+│   ├── health_check_service.py      # Multi-dimensional health scoring engine (0–100)
+│   ├── analytics_service.py         # All analytics aggregation pipelines
+│   ├── alert_service.py             # Alert rule evaluation and type classification
+│   ├── notification_service.py      # Alert state management, email dispatch coordination
+│   ├── incident_service.py          # Incident lifecycle: open / acknowledge / resolve
+│   ├── report_service.py            # Weekly/monthly report generation and benchmarking
+│   ├── email_provider.py            # SMTP email templates and sending
+│   ├── uptime_service.py            # Uptime helpers and outage detection
+│   ├── uptime_aggregator.py         # Cached uptime metrics aggregation
+│   └── scraper_service.py           # Stock scraping job wrapper
+│
+├── models/
+│   ├── analytics.py                 # Pydantic models: UptimeStats, LatencyStats, etc.
+│   ├── health.py                    # Pydantic models: HealthCheckResult, HealthDeduction
+│   └── incidents.py                 # Pydantic models: Incident, IncidentMetrics, Timeline
+│
+├── servers/
+│   ├── stock_scraper_service.py     # Screener.in scraper implementation
+│   └── IndianStockTicker.json       # List of stock tickers to track
+│
+├── templates/
+│   ├── index.html                   # Main operator dashboard (glassmorphism UI)
+│   └── status.html                  # Public-facing status page (/status route)
+│
+├── static/
+│   └── js/
+│       ├── charts.js                # Shared Chart.js helpers (ChartHelpers namespace)
+│       └── incidents.js             # Incident timeline + executive reports JS engine
+│
+├── public/                          # Static public assets (images, icons)
+│
+└── .github/
+    └── workflows/
+        └── serverguardian-monitor.yml  # GitHub Actions cron workflow
+```
 
-* Stock scraping via Screener.in
-* Optional market-hour-only execution
-* Upserts into the `investiqdb.Stocks` collection
 
-## Repository Layout
+## 🗄️ Data Model
 
-* `main.py` - starts the dashboard server and initializes MongoDB indexes
-* `dashboard.py` - FastAPI app with dashboard routes and analytics endpoints
-* `monitor_runner.py` - scheduled runner used by GitHub Actions
-* `config.py` - service definitions and environment-driven settings
-* `services/monitoring_service.py` - ping execution and persistence
-* `services/scraper_service.py` - stock scraping job wrapper
-* `services/analytics_service.py` - analytics and reporting queries
-* `services/alert_service.py` - alert evaluation logic
-* `services/notification_service.py` - alert state management and email dispatch
-* `services/uptime_service.py` - uptime helpers and outage detection
-* `services/uptime_aggregator.py` - cached uptime metrics aggregation
-* `services/email_provider.py` - SMTP email templates and sending
-* `servers/stock_scraper_service.py` - stock scraping implementation
-* `templates/index.html` - dashboard HTML shell
-* `static/js/charts.js` - chart rendering helpers
-* `models/analytics.py` - Pydantic response models
-* `scripts/migrate_monitoring_history.py` - legacy history migration utility
+All runtime data is stored in **MongoDB**. Two databases are used:
 
-## Runtime Flow
+### `ServerAutomation` Database
 
-1. GitHub Actions starts `monitor_runner.py` every 5 minutes.
-2. The runner loads `SERVICES_CONFIG` from `config.py`.
-3. Each enabled service is processed in its own thread.
-4. Pinger services call `execute_ping`.
-5. Scraper services call `run_scraper`.
-6. Results are written to MongoDB collections.
-7. Alert rules are evaluated and emails are sent if configured.
-8. Uptime metrics are aggregated into the cached `uptime_metrics` collection.
-9. The dashboard reads the latest state and analytics directly from MongoDB.
+| Collection | Purpose |
+|---|---|
+| `latest_status` | Current visible state for each service (1 doc per service) |
+| `monitoring_history` | Long-term check history — source of truth for all analytics |
+| `health_logs` | Detailed ping logs with response snippets (TTL-expired) |
+| `uptime_metrics` | Cached multi-window uptime values (7d, 14d, 30d) |
+| `alerts` | Full alert history with type, reason, delivery status |
+| `alert_state` | Incident suppression context and recovery tracking |
+| `incidents` | Incident lifecycle documents with timeline events |
+| `github_actions_status` | Last runner execution result and timestamps |
 
-## Data Model
+### `investiqdb` Database
 
-The project uses MongoDB as the central source of truth.
+| Collection | Purpose |
+|---|---|
+| `Stocks` | Scraped stock snapshots (price, market cap, P/E, ROCE, ROE, etc.) |
 
-### Databases
+### Key Document Shapes
 
-* `ServerAutomation`
-* `investiqdb`
+**`latest_status`**
+```json
+{
+  "service_id": "quillix_api",
+  "service_name": "Quillix API",
+  "status": "failed",
+  "health_score": 0,
+  "latency_ms": 1589,
+  "http_status_code": 503,
+  "last_checked": "2026-06-24T16:13:26+00:00",
+  "uptime_7d": 91.3,
+  "uptime_30d": 95.7
+}
+```
 
-### Main Collections
+**`incidents`**
+```json
+{
+  "incident_id": "INC-2026-0042",
+  "service_id": "quillix_api",
+  "service_name": "Quillix API",
+  "status": "open",
+  "severity": "critical",
+  "started_at": "2026-06-24T03:31:46+00:00",
+  "acknowledged_at": null,
+  "resolved_at": null,
+  "mttd_seconds": 312,
+  "mttr_seconds": null,
+  "timeline": [
+    { "event": "INCIDENT_OPENED", "timestamp": "...", "note": "HTTP 503" }
+  ]
+}
+```
 
-* `latest_status`
-* `monitoring_history`
-* `health_logs`
-* `uptime_metrics`
-* `alerts`
-* `alert_state`
-* `github_actions_status`
-* `Stocks`
+## 📡 API Reference
 
-### What Each Collection Stores
-
-* `latest_status` stores the current visible state for each service
-* `monitoring_history` stores long-term check history for analytics
-* `health_logs` stores detailed ping execution logs with response snippets
-* `uptime_metrics` stores cached multi-window uptime values
-* `alerts` stores alert history and delivery state
-* `alert_state` stores incident suppression and recovery context
-* `github_actions_status` stores the last runner execution result
-* `Stocks` stores scraped stock snapshots
-
-## Configured Services
-
-Service definitions live in `config.py` and are environment-driven.
-
-### Pinger Services
-
-* monitored server endpoints defined in `config.py`
-
-### Scraper Service
-
-* `stock_scraper` when `ENABLE_STOCK_SCRAPER` is enabled
-
-### Schedule Rules
-
-* Most pinger services run every 10 minutes
-* `stock_scraper` is scheduled every 15 minutes by the runner
-* Service execution is constrained by allowed hours and days in IST
-* selected monitored servers are treated as 24/7 services
-* some monitored servers are allowed between 09:00 and 02:00 IST, crossing midnight
-
-## API Surface
-
-The dashboard exposes both UI and JSON APIs.
+The dashboard exposes **29 endpoints** across 6 functional groups.
 
 ### UI Routes
 
-* `GET /` returns the dashboard HTML
-* `/public/*` serves static images and assets
-* `/static/*` serves JavaScript assets
+| Method | Route | Description |
+|---|---|---|
+| `GET` | `/` | Operator dashboard HTML |
+| `GET` | `/status` | Public status page HTML |
+| `GET` | `/static/*` | JavaScript assets |
+| `GET` | `/public/*` | Public images and icons |
 
-### Status and Logs
+### Status & Logs
 
-* `GET /api/status` returns the latest state for all configured services
-* `GET /api/logs` returns a merged recent activity feed
-* `POST /api/ping/{service_name}` triggers a background ping or scraper run
-* `GET /api/github-actions/status` returns the last GitHub Actions runner state
+| Method | Route | Description |
+|---|---|---|
+| `GET` | `/api/status` | Latest state for all configured services |
+| `GET` | `/api/logs` | Merged recent activity feed (health logs + alerts) |
+| `POST` | `/api/ping/{service_name}` | Trigger a background ping or scraper run |
+| `GET` | `/api/github-actions/status` | Last GitHub Actions runner state |
 
-### Uptime and Incident APIs
+### Uptime & Alerts
 
-* `GET /api/services/{id}/uptime` returns cached service uptime metrics
-* `GET /api/uptime/overview` returns overall platform reliability
-* `GET /api/uptime/history` returns 30-day daily availability history
-* `GET /api/alerts` returns active incidents and alert history
-* `GET /api/alerts/analytics` returns alert counts and recovery metrics
+| Method | Route | Description |
+|---|---|---|
+| `GET` | `/api/services/{id}/uptime` | Cached uptime metrics for one service |
+| `GET` | `/api/uptime/overview` | Overall platform reliability summary |
+| `GET` | `/api/uptime/history` | 30-day daily availability series |
+| `GET` | `/api/alerts` | Active incidents + recent alert history |
+| `GET` | `/api/alerts/analytics` | Alert counts and recovery rate metrics |
 
-### Analytics APIs
+### Analytics
 
-* `GET /api/analytics/uptime/{service_id}?days=30`
-* `GET /api/analytics/latency/{service_id}?days=30`
-* `GET /api/analytics/trend/{service_id}?days=30`
-* `GET /api/analytics/ranking?days=30`
-* `GET /api/analytics/reliability/{service_id}`
-* `GET /api/analytics/platform?days=30`
+| Method | Route | Description |
+|---|---|---|
+| `GET` | `/api/analytics/platform?days=30` | Platform-wide health overview KPIs |
+| `GET` | `/api/analytics/uptime/{service_id}?days=30` | Per-service uptime stats |
+| `GET` | `/api/analytics/latency/{service_id}?days=30` | Per-service latency percentiles |
+| `GET` | `/api/analytics/trend/{service_id}?days=30` | Daily uptime trend series |
+| `GET` | `/api/analytics/ranking?days=30` | Cross-service reliability leaderboard |
+| `GET` | `/api/analytics/reliability/{service_id}` | Full reliability report for one service |
 
-### Response Model Notes
+### Incidents
 
-The analytics layer is backed by Pydantic models in `models/analytics.py`, including:
+| Method | Route | Description |
+|---|---|---|
+| `GET` | `/api/incidents?limit=20` | List incidents (most recent first) |
+| `GET` | `/api/incidents/{id}` | Full incident detail with timeline |
+| `POST` | `/api/incidents/{id}/acknowledge` | Acknowledge an open incident |
+| `GET` | `/api/incidents/metrics?days=30` | MTTD, MTTR, total incidents aggregated |
 
-* `UptimeStats`
-* `LatencyStats`
-* `ReliabilityReport`
-* `ServiceRanking`
-* `PlatformSummary`
+### Executive Reports
 
-## Environment Variables
+| Method | Route | Description |
+|---|---|---|
+| `GET` | `/api/reports/weekly` | 7-day performance report JSON |
+| `GET` | `/api/reports/monthly` | 30-day executive summary JSON |
+| `GET` | `/api/reports/benchmarks` | Cross-service ranking and SLA compliance |
 
-### Required
+### Public Status API
 
-* `MONGO_URI` - MongoDB connection string used by both the dashboard and the runner
-...& others if anyone want so [Contact: Mail](mailto:ujjwalsaini0007+server@gmail.com)
+| Method | Route | Description |
+|---|---|---|
+| `GET` | `/api/status-page/summary` | Summary JSON powering the public status page |
 
-### Optional Email Alerting
 
-* `EMAIL_HOST`
-* `EMAIL_PORT` - defaults to `587`
-* `EMAIL_USER`
-* `EMAIL_PASSWORD`
-* `EMAIL_FROM`
-* `ALERT_RECIPIENTS`
+## ⚙️ Configuration
 
-If email settings are incomplete, alerts are still logged to MongoDB, but email delivery is skipped safely.
+### Environment Variables
 
-## Local Development
+Create a `.env` file in the project root:
+
+```env
+# ── Required ────────────────────────────────────────────────
+MONGO_URI=mongodb+srv://user:pass@cluster.mongodb.net/?retryWrites=true
+
+# ── Monitored Service URLs ───────────────────────────────────
+QUILLIX_API_URL=https://your-service-1.com/health
+AFFILIATE_HEALTH_URL=https://your-service-2.com/health
+STOCK_SENTINEL_URL=https://your-service-3.com/health
+VISIONRETAIL_IQ_URL=https://your-service-4.com/health
+
+# ── Email Alerting (Optional) ────────────────────────────────
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=587
+EMAIL_USER=alerts@yourdomain.com
+EMAIL_PASSWORD=your-app-password
+EMAIL_FROM=ServerGuardian <alerts@yourdomain.com>
+ALERT_RECIPIENTS=ops@yourdomain.com,dev@yourdomain.com
+
+# ── Feature Flags ────────────────────────────────────────────
+ENABLE_STOCK_SCRAPER=false
+
+# ── Reliability Thresholds ───────────────────────────────────
+RELIABILITY_EXCELLENT=99.5
+RELIABILITY_GOOD=97.0
+RELIABILITY_WARNING=90.0
+SLA_TARGET_PCT=99.5
+
+# ── Health Check Latency Thresholds (ms) ─────────────────────
+HEALTH_LATENCY_WARNING_MS=2000
+HEALTH_LATENCY_CRITICAL_MS=5000
+
+# ── Incident Settings ─────────────────────────────────────────
+INCIDENT_ID_PREFIX=INC
+
+# ── Report Dispatch ──────────────────────────────────────────
+REPORT_SEND_DAY=0          # 0 = Monday (ISO weekday)
+REPORT_SEND_HOUR_UTC=6     # Send at 06:00 UTC = 11:30 AM IST
+```
+
+> If email variables are incomplete, alerts are still logged to MongoDB — email delivery is skipped safely without crashing the runner.
+
+### Configuring Services (`config.py`)
+
+Services are defined in the `SERVICES_CONFIG` list. Each entry supports:
+
+```python
+{
+    "service_id": "my_service",
+    "name": "My Service",
+    "url": os.getenv("MY_SERVICE_URL"),
+    "type": "pinger",                   # or "scraper"
+    "enabled": True,
+    "allowed_hours": (0, 24),           # IST hour range (0,24) = 24/7
+    "allowed_days": list(range(7)),     # 0=Mon … 6=Sun
+    "health_schema": {                  # Optional: expected JSON keys to validate
+        "status": str,
+        "database": dict
+    }
+}
+```
+
+
+## 🤖 GitHub Actions Setup
+
+The workflow file is at `.github/workflows/serverguardian-monitor.yml`.
+
+### What it does
+- Runs **every 5 minutes** via `schedule: cron: '*/5 * * * *'`
+- Supports **manual trigger** via `workflow_dispatch`
+- Installs Python 3.11 + all dependencies from `requirements.txt`
+- Runs `python monitor_runner.py`
+
+### Required Secrets
+
+Go to **Settings → Secrets and variables → Actions → New repository secret** and add:
+
+| Secret | Description |
+|---|---|
+| `MONGO_URI` | MongoDB Atlas connection string |
+| `QUILLIX_API_URL` | Health endpoint URL for Quillix API |
+| `AFFILIATE_HEALTH_URL` | Health endpoint URL for Affiliate service |
+| `STOCK_SENTINEL_URL` | Health endpoint URL for Stock Sentinel |
+| `VISIONRETAIL_IQ_URL` | Health endpoint URL for VisionRetail IQ |
+| `EMAIL_HOST` | SMTP host (e.g. `smtp.gmail.com`) |
+| `EMAIL_PORT` | SMTP port (e.g. `587`) |
+| `EMAIL_USER` | SMTP username / sending address |
+| `EMAIL_PASSWORD` | SMTP password or app password |
+| `EMAIL_FROM` | Friendly sender name + address |
+| `ENABLE_STOCK_SCRAPER` | `true` or `false` |
+| `ALERT_RECIPIENTS` | Comma-separated recipient email list |
+
+> **Note:** If `MONGO_URI` is missing or empty, the runner exits immediately with `Empty host` error. Always verify secrets are populated.
+
+### Trigger a Manual Run
+
+```
+GitHub → Actions → ServerGuardian Monitor → Run workflow
+```
+
+
+## 💻 Local Development
 
 ### Prerequisites
 
-* Python 3.11 or newer
-* MongoDB Atlas or a local MongoDB instance
-* Network access to the monitored service URLs
+- Python 3.11+
+- MongoDB Atlas cluster **or** local MongoDB (`mongod` running)
+- Network access to your monitored service URLs
 
 ### Install
 
+```bash
+git clone https://github.com/UjjwalSaini07/Server-Automation.git
+```
+```bash
+cd Server-Automation
+```
 ```bash
 python -m pip install -r requirements.txt
 ```
 
 ### Configure
 
-Create a `.env` file in the project root and define at least:
-
-```env
-MONGO_URI=mongodb://localhost:27017
-...& others
-```
-
-If you want email alerts, add:
-
-```env
-EMAIL_HOST=smtp.gmail.com
-EMAIL_PORT=587
-EMAIL_USER=alerts@example.com
-EMAIL_PASSWORD=your-app-password
-ALERT_RECIPIENTS=ops@example.com,dev@example.com
+```bash
+cp .env.example .env
+# Edit .env with your MONGO_URI and service URLs
 ```
 
 ### Run the Dashboard
@@ -308,9 +513,8 @@ ALERT_RECIPIENTS=ops@example.com,dev@example.com
 python main.py
 ```
 
-The dashboard starts on:
-
-* `http://localhost:8080`
+Opens at → `http://localhost:8080`  
+Public status page → `http://localhost:8080/status`
 
 ### Run One Monitoring Cycle Manually
 
@@ -318,155 +522,104 @@ The dashboard starts on:
 python monitor_runner.py
 ```
 
-This is the same job that GitHub Actions runs on schedule.
+This is identical to what GitHub Actions runs on schedule. Use it to test your secrets and service connectivity locally.
 
-### Optional Migration
 
-If you have older `monitoring_history` documents written by a legacy schema, run:
+## 🐳 Docker Deployment
 
-```bash
-python scripts/migrate_monitoring_history.py
-```
-
-The migration is idempotent and only touches legacy rows that do not yet have `service_id`.
-
-## Docker
-
-The repository includes a simple Dockerfile and Compose setup.
-
-### Build and Run
+### Build and Start
 
 ```bash
 docker compose up --build
 ```
 
-### Container Behavior
+### What the container does
 
-* the container runs `python main.py`
-* port `8080` is exposed
-* `firebase_key.json` is mounted read-only at `/app/firebase_key.json`
-* `GOOGLE_APPLICATION_CREDENTIALS` is set to that mounted path
+- Runs `python main.py` (FastAPI dashboard)
+- Exposes port `8080`
+- Reads environment variables from your host or a `.env` file mounted via Compose
 
-## GitHub Actions
+> **Note:** The monitoring runner (`monitor_runner.py`) is designed to run in GitHub Actions, not inside Docker. The Docker container serves only the dashboard.
 
-The workflow lives at `.github/workflows/serverguardian-monitor.yml`.
 
-### Behavior
+## 🌐 Public Status Page
 
-* runs every 5 minutes
-* supports manual `workflow_dispatch`
-* installs dependencies with `pip`
-* runs `python monitor_runner.py`
-* reads all required secrets from GitHub Actions secrets
+The `/status` route serves a standalone, public-facing uptime page — no login required.
 
-### Required Secrets
+**What it shows:**
+- Overall system status banner (Operational / Partial Outage / Major Outage)
+- Per-service health: status dot, uptime %, average latency, last checked (IST)
+- Active incidents with severity and acknowledgment status
+- 30-day incident history table with MTTR
 
-* `MONGO_URI`
-... & others
+**Designed to be linked externally** — share `https://your-domain.com/status` with your customers so they can self-serve during outages instead of flooding your support channel.
 
-## Dashboard Experience
 
-The dashboard UI in `templates/index.html` and `static/js/charts.js` provides:
+## 🔧 Troubleshooting
 
-* live service tiles
-* search and status filters
-* uptime trend charts
-* uptime distribution visualization
-* reliability leaderboard
-* service-level reliability modal
-* platform analytics overview
-* terminal-style event stream
+### Dashboard Shows `PENDING` for All Services
+- Verify `MONGO_URI` is set and the cluster is reachable
+- Run `python monitor_runner.py` locally once to populate `latest_status`
+- Check that service URLs in `config.py` / `.env` are correct and reachable
 
-The UI is intentionally dark, glassmorphic, and operator-focused.
+### GitHub Actions Fails: `Empty host (or extra comma in host list)`
+- `MONGO_URI` secret is empty or missing in GitHub repository secrets
+- Go to **Settings → Secrets → Actions** and add/update `MONGO_URI`
 
-## Stock Scraper Notes
+### Email Alerts Not Sending
+- Confirm `EMAIL_HOST`, `EMAIL_USER`, `EMAIL_PASSWORD`, `EMAIL_FROM`, `ALERT_RECIPIENTS` are all set
+- For Gmail: use an [App Password](https://support.google.com/accounts/answer/185833), not your login password
+- Verify `ALERT_RECIPIENTS` contains at least one valid address
 
-The stock scraper:
+### Analytics / Charts Show No Data
+- `monitoring_history` must have at least a few documents with matching `service_id`
+- Ensure the dashboard and runner both point to the **same MongoDB cluster**
+- Check that `uptime_metrics` collection is being populated (written at end of each runner cycle)
 
-* reads tickers from `servers/IndianStockTicker.json`
-* fetches Screener.in pages with `requests`
-* extracts metrics such as market cap, price, P/E, dividend yield, ROCE, ROE, and face value
-* stores results in `investiqdb.Stocks`
-* respects weekday and intraday schedule constraints
-
-Because the scraper pulls public web pages, it can fail if the remote site changes layout or rate limits requests.
-
-## Reliability and Analytics Design
-
-The analytics engine in `services/analytics_service.py` is optimized around `monitoring_history` as the single source of truth.
-
-Important behaviors:
-
-* aggregation pipelines are used instead of loading all documents into Python
-* service ranking is computed across all configured services
-* trend indicators compare 24-hour uptime against 7-day uptime
-* consecutive outage detection checks the last three runs
-* platform summary calculates cross-service uptime and latency metrics
-* reliability thresholds are controlled by environment variables
-
-## Operational Considerations
-
-* MongoDB indexes are created on startup for analytics and TTL cleanup
-* `health_logs` uses TTL expiration for pinger log retention
-* alert emails are rate-limited and incident-suppressed to avoid spam
-* dashboard reads are non-destructive and do not modify the monitoring state
-* the system is tolerant of missing data and defaults to `100.0` when history is absent
-
-## Troubleshooting
-
-### Dashboard Shows `PENDING`
-
-* confirm `MONGO_URI` is correct
-* verify the runner has already written to `latest_status`
-* check that the service URLs are reachable
-
-### Email Alerts Are Not Sending
-
-* confirm all SMTP variables are set
-* ensure `ALERT_RECIPIENTS` contains at least one valid address
-* verify the SMTP provider allows app-password or authenticated SMTP delivery
-
-### GitHub Actions Runs But No Metrics Appear
-
-* verify repository secrets are populated
-* confirm the monitored service endpoints return valid JSON or HTTP responses
-* inspect `github_actions_status` in MongoDB
+### Monitoring Is Stale (`Freshness: Xm ago`)
+- GitHub Actions has not run for `X` minutes — check the Actions tab for errors
+- Common causes: empty secrets, workflow disabled, GitHub free-tier concurrent job limits
 
 ### Stock Scraper Does Nothing
+- Set `ENABLE_STOCK_SCRAPER=true` in your environment / secrets
+- Verify current IST time is within the configured `allowed_hours` window
+- Check `servers/IndianStockTicker.json` exists and is valid JSON
 
-* confirm `ENABLE_STOCK_SCRAPER=true`
-* verify the current time is within the allowed IST trading window
-* check that `servers/IndianStockTicker.json` exists and is readable
+### Incidents Not Being Created
+- Incidents are created by `incident_service.py` when `notification_service.py` detects a new failure
+- Confirm `monitor_runner.py` is completing full cycles without Python exceptions
+- Check the `alert_state` collection — incidents are only opened when no existing open incident exists for that service
 
-### Analytics Look Empty
 
-* confirm `monitoring_history` contains service documents with `service_id`
-* run the migration script if the collection still contains legacy rows
-* make sure the dashboard and runner are both pointing to the same MongoDB cluster
+## 🔒 Security
 
-## Security Notes
+- **Never commit `.env`** — it is listed in `.gitignore`
+- Use **GitHub Secrets** for all runner credentials — never hardcode them in workflow files
+- Use **MongoDB Atlas IP Access Rules** to restrict database access to GitHub Actions IP ranges or your server IP
+- Health endpoints are treated as **untrusted inputs** — response parsing is wrapped in try/except
+- The `/status` route exposes **only aggregated, non-sensitive data** — no internal errors, no credentials
+- Dashboard routes do not expose raw MongoDB queries or connection details to the browser
 
-* Do not commit real secrets into the repository
-* Use MongoDB Atlas IP access rules appropriate for your deployment
-* Prefer GitHub Secrets for runner credentials
-* Treat public health endpoints as untrusted inputs when extending parsers
 
-## Author & System Architect
+## 👤 Author
 
 **Ujjwal Saini**  
-Founder, Lead Engineer & System Architect
+*Founder · Lead Engineer · System Architect*
 
-Passionate Full-Stack Engineer specializing in AI-powered systems, real-time analytics, secure database designs, and scalable platform architectures. Focused on building production-grade solutions that transform raw operational data into actionable business intelligence. Ujjwal brings bold ideas to life through stunning interfaces and seamless user experiences, always chasing clarity in every interaction.
+Passionate Full-Stack Engineer specializing in AI-powered systems, real-time analytics, secure database designs, and scalable platform architectures. ServerGuardian Pro is designed and built end-to-end — from MongoDB aggregation pipelines and GitHub Actions scheduling to the incident engine, executive reports, and the glassmorphism operator dashboard.
 
-For ServerGuardian, Ujjwal designed and implemented the complete end-to-end platform - from MongoDB-backed monitoring history and alert state management to GitHub Actions scheduling, analytics pipelines, and the operator dashboard.
+[![Portfolio](https://img.shields.io/badge/Portfolio-ujjwalsaini.vercel.app-6366f1?style=for-the-badge&logoColor=white)](https://ujjwalsaini.vercel.app)
+[![GitHub](https://img.shields.io/badge/GitHub-UjjwalSaini07-181717?style=for-the-badge&logo=github)](https://github.com/UjjwalSaini07)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-ujjwalsaini07-0A66C2?style=for-the-badge&logo=linkedin)](https://www.linkedin.com/in/ujjwalsaini07)
+[![Email](https://img.shields.io/badge/Email-Contact-EA4335?style=for-the-badge&logo=gmail)](mailto:ujjwalsaini0007+server@gmail.com)
 
-### Contact & Links
 
-* Portfolio: [ujjwalsaini.vercel.app](https://ujjwalsaini.vercel.app)
-* GitHub: [github.com/UjjwalSaini07](https://github.com/UjjwalSaini07)
-* LinkedIn: [linkedin.com/in/ujjwalsaini07](https://www.linkedin.com/in/ujjwalsaini07)
-* Email: [ujjwalsaini0007+server@gmail.com](mailto:ujjwalsaini0007+server@gmail.com)
+## 📄 License
 
-## License
+This project is distributed under the **MIT License**. See [LICENSE](./LICENSE) for full terms.
 
-This project is distributed under the terms of the repository MIT license.
+<div align="center">
+
+Built with ⚡ by **Ujjwal Saini** · Powered by FastAPI + MongoDB + GitHub Actions
+
+</div>
