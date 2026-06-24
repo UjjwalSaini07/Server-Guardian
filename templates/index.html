@@ -3,17 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Server Keep-Alive & Performance Engine</title>
+  <title>Server Guardian</title>
   <link rel="icon" type="image/png" href="/public/serverLogo.png">
   <!-- Google Fonts: Outfit & Space Mono -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Space+Mono:wght@400;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
-  <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <!-- FontAwesome Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   
   <script>
@@ -154,7 +151,7 @@
       >
       <div>
         <div class="flex items-center gap-2">
-          <h1 class="text-3xl font-extrabold font-outfit tracking-wide bg-gradient-to-r from-white via-indigo-100 to-indigo-300 bg-clip-text text-transparent">KeepAlive</h1>
+          <h1 class="text-3xl font-extrabold font-outfit tracking-wide bg-gradient-to-r from-white via-indigo-100 to-indigo-300 bg-clip-text text-transparent">Server Guardian</h1>
           <span class="text-[10px] font-mono tracking-widest text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-2 py-0.5 rounded uppercase">v2.1</span>
         </div>
         <p class="text-xs text-slate-400 mt-0.5 font-outfit">Enterprise Keep-Alive Engine & Analytics Platform</p>
@@ -200,8 +197,9 @@
       </div>
     </div>
 
+    <!-- Dynamic Server Cards Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8" id="servers-grid">
     </div>
-
     <!-- Enterprise Uptime & Reliability Dashboard -->
     <div class="mb-8">
       <div class="flex items-center justify-between mb-6">
@@ -741,11 +739,24 @@
       setTimeout(() => div.remove(), 4000);
     }
 
+    // Helper to safely parse dates as UTC if they are naive
+    function parseUTCDate(isoString) {
+      if (!isoString) return new Date(NaN);
+      let formattedStr = isoString;
+      if (typeof isoString === 'string' && isoString.includes('T')) {
+        const timePart = isoString.split('T')[1] || '';
+        if (!isoString.endsWith('Z') && !timePart.includes('+') && !timePart.includes('-')) {
+          formattedStr = isoString + 'Z';
+        }
+      }
+      return new Date(formattedStr);
+    }
+
     // Format ISO string to IST local time
     function formatIST(isoString) {
       if (!isoString || isoString === 'Never') return 'Never';
       try {
-        const date = new Date(isoString);
+        const date = parseUTCDate(isoString);
         if (isNaN(date.getTime())) return 'Never';
         return date.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false, month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' });
       } catch (e) {
@@ -1409,7 +1420,7 @@
         
         // Check freshness
         if (data.last_execution_time) {
-          const runDate = new Date(data.last_execution_time);
+          const runDate = parseUTCDate(data.last_execution_time);
           const diffMs = new Date() - runDate;
           const diffMins = diffMs / 1000 / 60;
           
@@ -1636,6 +1647,9 @@
         const dates = historyData.map(d => d.date);
         const uptimes = historyData.map(d => d.uptime);
         
+        const minVal = uptimes.length > 0 ? Math.min(...uptimes) : 90.0;
+        const yMin = minVal < 90.0 ? Math.max(0, Math.floor(minVal - 10)) : 90.0;
+        
         const canvas = document.getElementById('availabilityTrendChart');
         if (!canvas) return;
         const ctx = canvas.getContext('2d');
@@ -1691,7 +1705,7 @@
                 ticks: { color: '#64748b', font: { family: 'Space Mono', size: 8 } }
               },
               y: {
-                min: 90.0,
+                min: yMin,
                 max: 100.0,
                 grid: { color: 'rgba(255,255,255,0.04)' },
                 ticks: { 
