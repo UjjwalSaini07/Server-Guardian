@@ -1,6 +1,4 @@
-<div align="center">
-
-# ⚡ ServerGuardian Pro
+# ⚡ Server Guardian
 
 **Production-grade observability & incident response platform**
 
@@ -380,44 +378,8 @@ The dashboard exposes **29 endpoints** across 6 functional groups.
 
 Create a `.env` file in the project root:
 
-```env
-# ── Required ────────────────────────────────────────────────
-MONGO_URI=mongodb+srv://user:pass@cluster.mongodb.net/?retryWrites=true
+Project settings are centralized in `config.py` & `.env` and the service modules. If you need the exact deployment values, service wiring, or notification settings & the keys for your environment, contact the author through the [Author & System Architect](#author--system-architect) section at the end of this README.
 
-# ── Monitored Service URLs ───────────────────────────────────
-QUILLIX_API_URL=https://your-service-1.com/health
-AFFILIATE_HEALTH_URL=https://your-service-2.com/health
-STOCK_SENTINEL_URL=https://your-service-3.com/health
-VISIONRETAIL_IQ_URL=https://your-service-4.com/health
-
-# ── Email Alerting (Optional) ────────────────────────────────
-EMAIL_HOST=smtp.gmail.com
-EMAIL_PORT=587
-EMAIL_USER=alerts@yourdomain.com
-EMAIL_PASSWORD=your-app-password
-EMAIL_FROM=ServerGuardian <alerts@yourdomain.com>
-ALERT_RECIPIENTS=ops@yourdomain.com,dev@yourdomain.com
-
-# ── Feature Flags ────────────────────────────────────────────
-ENABLE_STOCK_SCRAPER=false
-
-# ── Reliability Thresholds ───────────────────────────────────
-RELIABILITY_EXCELLENT=99.5
-RELIABILITY_GOOD=97.0
-RELIABILITY_WARNING=90.0
-SLA_TARGET_PCT=99.5
-
-# ── Health Check Latency Thresholds (ms) ─────────────────────
-HEALTH_LATENCY_WARNING_MS=2000
-HEALTH_LATENCY_CRITICAL_MS=5000
-
-# ── Incident Settings ─────────────────────────────────────────
-INCIDENT_ID_PREFIX=INC
-
-# ── Report Dispatch ──────────────────────────────────────────
-REPORT_SEND_DAY=0          # 0 = Monday (ISO weekday)
-REPORT_SEND_HOUR_UTC=6     # Send at 06:00 UTC = 11:30 AM IST
-```
 
 > If email variables are incomplete, alerts are still logged to MongoDB — email delivery is skipped safely without crashing the runner.
 
@@ -459,17 +421,9 @@ Go to **Settings → Secrets and variables → Actions → New repository secret
 | Secret | Description |
 |---|---|
 | `MONGO_URI` | MongoDB Atlas connection string |
-| `QUILLIX_API_URL` | Health endpoint URL for Quillix API |
-| `AFFILIATE_HEALTH_URL` | Health endpoint URL for Affiliate service |
-| `STOCK_SENTINEL_URL` | Health endpoint URL for Stock Sentinel |
-| `VISIONRETAIL_IQ_URL` | Health endpoint URL for VisionRetail IQ |
-| `EMAIL_HOST` | SMTP host (e.g. `smtp.gmail.com`) |
-| `EMAIL_PORT` | SMTP port (e.g. `587`) |
-| `EMAIL_USER` | SMTP username / sending address |
-| `EMAIL_PASSWORD` | SMTP password or app password |
-| `EMAIL_FROM` | Friendly sender name + address |
-| `ENABLE_STOCK_SCRAPER` | `true` or `false` |
-| `ALERT_RECIPIENTS` | Comma-separated recipient email list |
+
+
+If you want the exact deployment configuration for your environment, contact the author through the [Author & System Architect](#author--system-architect) section.
 
 > **Note:** If `MONGO_URI` is missing or empty, the runner exits immediately with `Empty host` error. Always verify secrets are populated.
 
