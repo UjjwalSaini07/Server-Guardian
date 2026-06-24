@@ -1,16 +1,18 @@
-# ⚡ Server Guardian
+# ⚡ ServerGuardian
 
-**Production-grade observability & incident response platform**
+### Enterprise Observability, Incident Response & Service Reliability Platform
 
 ![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white)
-![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-009688?style=for-the-badge&logo=fastapi&logoColor=white)
 ![MongoDB](https://img.shields.io/badge/MongoDB-Atlas-47A248?style=for-the-badge&logo=mongodb&logoColor=white)
 ![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-Automated-2088FF?style=for-the-badge&logo=github-actions&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)
 
-> Transform raw operational data into actionable intelligence — with real-time monitoring, deep health scoring, incident lifecycle management, executive reporting, and a stunning glassmorphism dashboard.
+> **Monitor. Detect. Respond.**
+>
+> ServerGuardian is a production-grade observability platform that continuously monitors services, performs deep health checks, tracks uptime and latency, manages incidents, delivers intelligent alerts, generates executive reports, and provides a beautiful real-time analytics dashboard—all from a single unified platform.
 
-</div>
+**ServerGuardian helps engineering teams monitor critical services, detect failures instantly, reduce downtime, and maintain operational excellence through a unified observability and incident response platform.**
+
 
 ## 📖 Table of Contents
 
