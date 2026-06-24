@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="refresh" content="60">
+  <title>ServerGuardian — System Status</title>
+  <meta name="description" content="Real-time system status and incident history for all monitored services.">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --border: #e2e8f0;
+      --text: #1e293b;
+      --muted: #64748b;
+      --green: #22c55e;
+      --amber: #f59e0b;
+      --red: #ef4444;
+      --blue: #6366f1;
+      --radius: 12px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0;
+    }
+
+    /* ── Header ── */
+    .header {
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+      padding: 28px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.07);
+    }
+    .header-inner {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 0 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .header-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .header-logo {
+      width: 38px;
+      height: 38px;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+    }
+    .header-title { color: #f1f5f9; font-size: 20px; font-weight: 700; }
+    .header-sub { color: #94a3b8; font-size: 13px; margin-top: 2px; }
+    .refresh-note {
+      color: #475569;
+      font-size: 12px;
+      text-align: right;
+    }
+
+    /* ── Layout ── */
+    .container {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 32px 20px 64px;
+    }
+
+    /* ── Status Banner ── */
+    .status-banner {
+      border-radius: var(--radius);
+      padding: 20px 24px;
+      margin-bottom: 28px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      border: 1.5px solid;
+    }
+    .status-banner.operational {
+      background: #f0fdf4;
+      border-color: #bbf7d0;
+    }
+    .status-banner.partial_outage, .status-banner.degraded {
+      background: #fffbeb;
+      border-color: #fde68a;
+    }
+    .status-banner.major_outage {
+      background: #fff1f2;
+      border-color: #fecdd3;
+    }
+    .banner-dot {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      animation: pulse 2s infinite;
+    }
+    .operational .banner-dot { background: var(--green); box-shadow: 0 0 0 4px rgba(34,197,94,0.2); }
+    .partial_outage .banner-dot, .degraded .banner-dot { background: var(--amber); box-shadow: 0 0 0 4px rgba(245,158,11,0.2); }
+    .major_outage .banner-dot { background: var(--red); box-shadow: 0 0 0 4px rgba(239,68,68,0.2); }
+
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 0 0px rgba(34,197,94,0.4); }
+      50% { box-shadow: 0 0 0 6px rgba(34,197,94,0); }
+    }
+
+    .banner-text-title {
+      font-size: 18px;
+      font-weight: 700;
+    }
+    .operational .banner-text-title { color: #15803d; }
+    .partial_outage .banner-text-title, .degraded .banner-text-title { color: #b45309; }
+    .major_outage .banner-text-title { color: #b91c1c; }
+    .banner-text-sub { font-size: 13px; color: var(--muted); margin-top: 2px; }
+
+    /* ── Section ── */
+    .section-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 12px;
+    }
+
+    /* ── Services Grid ── */
+    .services-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      margin-bottom: 28px;
+    }
+    .service-row {
+      display: flex;
+      align-items: center;
+      padding: 14px 20px;
+      gap: 12px;
+      border-bottom: 1px solid var(--border);
+      transition: background 0.15s;
+    }
+    .service-row:last-child { border-bottom: none; }
+    .service-row:hover { background: #f8fafc; }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .status-dot.operational { background: var(--green); }
+    .status-dot.down { background: var(--red); }
+    .status-dot.degraded, .status-dot.skipped { background: var(--amber); }
+
+    .service-name {
+      flex: 1;
+      font-weight: 600;
+      font-size: 14px;
+    }
+    .service-meta {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+    }
+    .badge {
+      font-size: 12px;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 20px;
+    }
+    .badge-green { background: #dcfce7; color: #166534; }
+    .badge-amber { background: #fef9c3; color: #854d0e; }
+    .badge-red { background: #fee2e2; color: #991b1b; }
+    .badge-gray { background: #f1f5f9; color: #475569; }
+    .latency-text { font-size: 13px; color: var(--muted); }
+
+    /* ── Active Incidents ── */
+    .incident-card {
+      background: #fff8f0;
+      border: 1.5px solid #fed7aa;
+      border-radius: var(--radius);
+      padding: 16px 20px;
+      margin-bottom: 12px;
+    }
+    .incident-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+    .incident-id { font-size: 12px; font-weight: 700; color: #c2410c; font-family: monospace; }
+    .incident-status-badge {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 4px;
+      text-transform: uppercase;
+    }
+    .badge-open { background: #fee2e2; color: #b91c1c; }
+    .badge-acknowledged { background: #fef9c3; color: #854d0e; }
+    .incident-service { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+    .incident-reason { font-size: 13px; color: var(--muted); }
+    .incident-time { font-size: 12px; color: var(--muted); margin-top: 6px; }
+
+    /* ── Resolved Incidents Table ── */
+    .history-table {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      margin-bottom: 28px;
+    }
+    .history-table table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    .history-table th {
+      background: #f1f5f9;
+      padding: 10px 14px;
+      text-align: left;
+      font-weight: 600;
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .history-table td {
+      padding: 11px 14px;
+      border-top: 1px solid var(--border);
+      color: var(--text);
+    }
+    .history-table tr:hover td { background: #f8fafc; }
+
+    .mttr-badge {
+      font-size: 12px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 4px;
+      background: #f1f5f9;
+      color: #334155;
+      font-family: monospace;
+    }
+
+    /* ── Footer ── */
+    .footer {
+      text-align: center;
+      color: var(--muted);
+      font-size: 12px;
+      padding-top: 32px;
+      border-top: 1px solid var(--border);
+    }
+    .footer a { color: var(--blue); text-decoration: none; }
+
+    /* ── No incidents ── */
+    .no-incidents {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 14px;
+      margin-bottom: 28px;
+    }
+
+    @media (max-width: 600px) {
+      .service-meta { flex-direction: column; align-items: flex-end; gap: 4px; }
+      .header-inner { flex-direction: column; gap: 8px; text-align: center; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-inner">
+    <div class="header-brand">
+      <div class="header-logo">🛡️</div>
+      <div>
+        <div class="header-title">ServerGuardian Pro</div>
+        <div class="header-sub">System Status &amp; Incident Tracker</div>
+      </div>
+    </div>
+    <div class="refresh-note">Auto-refreshes every 60s<br>All times in UTC</div>
+  </div>
+</div>
+
+<div class="container">
+  <div id="status-root">Loading...</div>
+</div>
+
+<script>
+// Data injected server-side
+const DATA = __STATUS_DATA__;
+
+function fmtDuration(s) {
+  if (s == null) return 'N/A';
+  if (s < 60) return `${Math.round(s)}s`;
+  if (s < 3600) return `${Math.floor(s/60)}m ${Math.round(s%60)}s`;
+  return `${Math.floor(s/3600)}h ${Math.floor((s%3600)/60)}m`;
+}
+
+function fmtIST(iso) {
+  if (!iso) return '—';
+  try {
+    let s = iso.trim().replace(' ', 'T');
+    // Only check TIME portion for offset — date part always has '-' dashes
+    const tIdx = s.indexOf('T');
+    if (tIdx === -1) {
+      if (!s.endsWith('Z')) s += 'T00:00:00Z';
+    } else {
+      const timePart = s.slice(tIdx + 1);
+      const hasOffset = s.endsWith('Z') || timePart.includes('+') || timePart.includes('-');
+      if (!hasOffset) s += 'Z'; // naive UTC — add Z
+    }
+    const d = new Date(s);
+    if (isNaN(d.getTime())) return '—';
+    // Shift to IST (UTC+5:30)
+    const ist = new Date(d.getTime() + 5.5 * 60 * 60 * 1000);
+    const day  = String(ist.getUTCDate()).padStart(2, '0');
+    const mo   = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][ist.getUTCMonth()];
+    let   h24  = ist.getUTCHours();
+    const min  = String(ist.getUTCMinutes()).padStart(2, '0');
+    const ampm = h24 >= 12 ? 'PM' : 'AM';
+    let   h12  = h24 % 12 || 12;
+    return `${day} ${mo}, ${String(h12).padStart(2,'0')}:${min} ${ampm}`;
+  } catch { return iso; }
+}
+
+function statusLabel(s) {
+  if (s === 'operational') return 'Operational';
+  if (s === 'down') return 'Outage';
+  if (s === 'skipped') return 'Scheduled Off';
+  return 'Degraded';
+}
+
+function uptimeBadgeClass(uptime) {
+  if (uptime >= 99) return 'badge-green';
+  if (uptime >= 95) return 'badge-amber';
+  return 'badge-red';
+}
+
+function bannerText(status) {
+  if (status === 'operational') return { title: 'All Systems Operational', sub: 'No active incidents. All services are running normally.' };
+  if (status === 'partial_outage') return { title: 'Partial System Outage', sub: 'One or more services are experiencing issues. We are investigating.' };
+  if (status === 'major_outage') return { title: 'Major Outage Detected', sub: 'Critical services are down. Our team is actively working on a resolution.' };
+  return { title: 'Service Degradation', sub: 'Some services are operating in a reduced capacity.' };
+}
+
+function render() {
+  const overall = DATA.overall_status || 'operational';
+  const services = DATA.services || [];
+  const activeIncidents = DATA.active_incidents || [];
+  const recentIncidents = DATA.recent_incidents || [];
+  const lastUpdated = fmtIST(DATA.last_updated);
+  const banner = bannerText(overall);
+
+  let html = '';
+
+  // Status Banner
+  html += `
+    <div class="status-banner ${overall}">
+      <div class="banner-dot"></div>
+      <div>
+        <div class="banner-text-title">${banner.title}</div>
+        <div class="banner-text-sub">${banner.sub}</div>
+      </div>
+    </div>
+  `;
+
+  // Services Grid
+  html += `<div class="section-title">Services</div>`;
+  html += `<div class="services-card">`;
+  if (services.length === 0) {
+    html += `<div style="padding:20px;text-align:center;color:#94a3b8;">No services found.</div>`;
+  } else {
+    for (const svc of services) {
+      const status = svc.current_status || 'operational';
+      const uptime = svc.uptime_30d ?? 100;
+      const latText = svc.avg_latency_ms != null ? `${Math.round(svc.avg_latency_ms)} ms` : '—';
+      const lastCheck = fmtIST(svc.last_checked);
+
+      html += `
+        <div class="service-row">
+          <div class="status-dot ${status}"></div>
+          <div class="service-name">${svc.service_name || svc.service_id || '—'}</div>
+          <div class="service-meta">
+            <span class="latency-text">Latency: ${latText}</span>
+            <span class="badge ${uptimeBadgeClass(uptime)}">${uptime.toFixed(2)}% uptime</span>
+            <span class="badge ${status === 'operational' ? 'badge-green' : status === 'skipped' ? 'badge-gray' : 'badge-red'}">${statusLabel(status)}</span>
+          </div>
+        </div>
+      `;
+    }
+  }
+  html += `</div>`;
+
+  // Active Incidents
+  html += `<div class="section-title" style="margin-top:8px;">Active Incidents</div>`;
+  if (activeIncidents.length === 0) {
+    html += `<div class="no-incidents">✅ No active incidents at this time.</div>`;
+  } else {
+    for (const inc of activeIncidents) {
+      const statusBadge = inc.status === 'acknowledged' ? 'badge-acknowledged' : 'badge-open';
+      html += `
+        <div class="incident-card">
+          <div class="incident-header">
+            <span class="incident-id">${inc.incident_id}</span>
+            <span class="incident-status-badge ${statusBadge}">${inc.status}</span>
+          </div>
+          <div class="incident-service">🔴 ${inc.service_name}</div>
+          <div class="incident-reason">${inc.failure_reason || inc.trigger_alert_type || 'Service is unavailable'}</div>
+          <div class="incident-time">Started: ${fmtIST(inc.started_at)}${inc.acknowledged_at ? ` · Acknowledged: ${fmtIST(inc.acknowledged_at)}` : ''}</div>
+        </div>
+      `;
+    }
+  }
+
+  // Incident History
+  html += `<div class="section-title" style="margin-top:8px;">Incident History (Last 30)</div>`;
+  if (recentIncidents.length === 0) {
+    html += `<div class="no-incidents">No resolved incidents in history.</div>`;
+  } else {
+    html += `<div class="history-table"><table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Service</th>
+          <th>Started (IST)</th>
+          <th>Duration</th>
+          <th>MTTR</th>
+        </tr>
+      </thead>
+      <tbody>`;
+    for (const inc of recentIncidents) {
+      html += `
+        <tr>
+          <td><span style="font-family:monospace;font-weight:600;">${inc.incident_id}</span></td>
+          <td>${inc.service_name}</td>
+          <td>${fmtIST(inc.started_at)}</td>
+          <td>${fmtDuration(inc.mttr_seconds)}</td>
+          <td><span class="mttr-badge">${fmtDuration(inc.mttr_seconds)}</span></td>
+        </tr>
+      `;
+    }
+    html += `</tbody></table></div>`;
+  }
+
+  // Footer
+  html += `
+    <div class="footer">
+      <p>Powered by <strong>ServerGuardian Pro</strong> &nbsp;·&nbsp; Last updated: ${lastUpdated}</p>
+      <p style="margin-top:6px;color:#94a3b8;">This page auto-refreshes every 60 seconds.</p>
+    </div>
+  `;
+
+  document.getElementById('status-root').innerHTML = html;
+}
+
+render();
+</script>
+</body>
+</html>

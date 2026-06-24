@@ -11,6 +11,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Space+Mono:wght@400;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="/static/js/charts.js"></script>
+  <script src="/static/js/incidents.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   
   <script>
@@ -135,7 +137,65 @@
     }
     @keyframes loading {
       0% { background-position: 200% 0; }
-      100% { background-position: -200% 0; }
+
+    /* Enterprise Analytics Styling (Phase 2) */
+    .analytics-kpi-card {
+      background: rgba(10, 10, 12, 0.6);
+      backdrop-filter: blur(20px) saturate(180%);
+      -webkit-backdrop-filter: blur(20px) saturate(180%);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .analytics-kpi-card:hover {
+      border-color: rgba(255, 255, 255, 0.12);
+      transform: translateY(-2px);
+      box-shadow: 0 16px 36px 0 rgba(99, 102, 241, 0.08);
+    }
+    .analytics-badge-excellent {
+      background: rgba(16, 185, 129, 0.1);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.2);
+    }
+    .analytics-badge-good {
+      background: rgba(99, 102, 241, 0.1);
+      color: #818cf8;
+      border: 1px solid rgba(99, 102, 241, 0.2);
+    }
+    .analytics-badge-warning {
+      background: rgba(245, 158, 11, 0.1);
+      color: #fbbf24;
+      border: 1px solid rgba(245, 158, 11, 0.2);
+    }
+    .analytics-badge-critical {
+      background: rgba(244, 63, 94, 0.1);
+      color: #f87171;
+      border: 1px solid rgba(244, 63, 94, 0.2);
+    }
+    .latency-bar-container {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .latency-bar-segment {
+      transition: width 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .leaderboard-table th {
+      font-family: 'Outfit', sans-serif;
+      color: #94a3b8;
+    }
+    .leaderboard-table tr {
+      transition: all 0.2s ease;
+    }
+    .leaderboard-table tr:hover {
+      background: rgba(255, 255, 255, 0.02);
+    }
+    .gold-glow {
+      box-shadow: 0 0 15px rgba(245, 158, 11, 0.2);
+      border-left: 3px solid #f59e0b !important;
+    }
+    .red-glow {
+      box-shadow: 0 0 15px rgba(244, 63, 94, 0.2);
+      border-left: 3px solid #f43f5e !important;
     }
   </style>
 </head>
@@ -297,6 +357,206 @@
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="reliability-rankings-panel">
           <p class="text-slate-400 text-xs col-span-full">Loading rankings...</p>
         </div>
+      </div>
+    </div>
+
+
+    <!-- ═══════════════════════════════════════════════ -->
+    <!-- ANALYTICS ENGINE (Phase 2)                     -->
+    <!-- ═══════════════════════════════════════════════ -->
+    <div class="mb-8">
+      <div class="flex items-center justify-between mb-6">
+        <div>
+          <h2 class="text-xl font-bold font-outfit text-slate-100 tracking-wide">
+            <i class="fa-solid fa-chart-line mr-2 text-indigo-400"></i> Enterprise Analytics Engine
+          </h2>
+          <p class="text-xs text-slate-400">Historical trends, latency intelligence, and platform aggregates</p>
+        </div>
+        <div class="flex items-center gap-3">
+          <span id="analytics-freshness" class="text-[10px] font-mono text-slate-500">Cached</span>
+        </div>
+      </div>
+
+
+      <!-- Error State Fallback UI (Phase 2.9) -->
+      <div id="analytics-engine-error" class="hidden glass-panel rounded-2xl p-8 text-center flex flex-col items-center justify-center gap-4 border border-rose-500/20 mb-8">
+        <div class="w-12 h-12 rounded-full bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400 mb-2">
+          <i class="fa-solid fa-triangle-exclamation text-xl"></i>
+        </div>
+        <h3 class="font-outfit font-bold text-slate-200">Failed to Load Analytics Data</h3>
+        <p class="text-xs text-slate-500 max-w-md" id="analytics-error-message">The analytics engine encountered an error fetching historical statistics.</p>
+        <button onclick="retryAnalyticsLoad()" class="mt-2 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 hover:text-white border border-indigo-500/30 font-semibold text-xs py-2 px-5 rounded-xl transition-all flex items-center gap-2">
+          <i class="fa-solid fa-rotate-right"></i> Retry Connection
+        </button>
+      </div>
+
+      <div id="analytics-engine-content">
+        <!-- Platform Health Overview Grid -->
+      <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-9 gap-4 mb-8" id="platform-health-overview">
+        <!-- Platform Uptime -->
+        <div class="glass-card rounded-xl p-4 flex flex-col justify-between border-t-2 border-t-indigo-500/30 col-span-2 md:col-span-1">
+          <div>
+            <span class="text-[9px] uppercase text-slate-500 font-bold tracking-wider block">Overall Uptime</span>
+            <span id="analytics-platform-uptime" class="text-xl font-black font-outfit text-slate-100 mt-1 block">--%</span>
+          </div>
+        </div>
+        <!-- Total Checks -->
+        <div class="glass-card rounded-xl p-4 flex flex-col justify-between border-t-2 border-t-indigo-500/30 col-span-1">
+          <div>
+            <span class="text-[9px] uppercase text-slate-500 font-bold tracking-wider block">Total Audits</span>
+            <span id="analytics-platform-checks" class="text-xl font-black font-outfit text-slate-100 mt-1 block">--</span>
+          </div>
+        </div>
+        <!-- Total Failures -->
+        <div class="glass-card rounded-xl p-4 flex flex-col justify-between border-t-2 border-t-rose-500/30 col-span-1">
+          <div>
+            <span class="text-[9px] uppercase text-slate-500 font-bold tracking-wider block">Failures</span>
+            <span id="analytics-platform-failures" class="text-xl font-black font-outfit text-slate-100 mt-1 block">--</span>
+          </div>
+        </div>
+        <!-- Above SLA -->
+        <div class="glass-card rounded-xl p-4 flex flex-col justify-between border-t-2 border-t-emerald-500/30 col-span-1">
+          <div>
+            <span class="text-[9px] uppercase text-slate-500 font-bold tracking-wider block">Above SLA</span>
+            <span id="analytics-above-sla" class="text-xl font-black font-outfit text-slate-100 mt-1 block">--</span>
+          </div>
+        </div>
+        <!-- Below SLA -->
+        <div class="glass-card rounded-xl p-4 flex flex-col justify-between border-t-2 border-t-rose-500/30 col-span-1">
+          <div>
+            <span class="text-[9px] uppercase text-slate-500 font-bold tracking-wider block">Below SLA</span>
+            <span id="analytics-below-sla" class="text-xl font-black font-outfit text-slate-100 mt-1 block">--</span>
+          </div>
+        </div>
+        <!-- Avg Latency -->
+        <div class="glass-card rounded-xl p-4 flex flex-col justify-between border-t-2 border-t-indigo-500/30 col-span-1">
+          <div>
+            <span class="text-[9px] uppercase text-slate-500 font-bold tracking-wider block">Avg Latency</span>
+            <span id="analytics-avg-latency" class="text-xl font-black font-outfit text-slate-100 mt-1 block">-- ms</span>
+          </div>
+        </div>
+        <!-- P95 Latency -->
+        <div class="glass-card rounded-xl p-4 flex flex-col justify-between border-t-2 border-t-indigo-500/30 col-span-1">
+          <div>
+            <span class="text-[9px] uppercase text-slate-500 font-bold tracking-wider block">P95 Latency</span>
+            <span id="analytics-p95-latency" class="text-xl font-black font-outfit text-slate-100 mt-1 block">-- ms</span>
+          </div>
+        </div>
+        <!-- Best Service -->
+        <div class="glass-card rounded-xl p-4 flex flex-col justify-between border-t-2 border-t-emerald-500/30 col-span-1">
+          <div>
+            <span class="text-[9px] uppercase text-slate-500 font-bold tracking-wider block">Best</span>
+            <span id="analytics-best-service" class="text-xs font-bold font-outfit text-slate-200 mt-2 block truncate">--</span>
+          </div>
+        </div>
+        <!-- Worst Service -->
+        <div class="glass-card rounded-xl p-4 flex flex-col justify-between border-t-2 border-t-rose-500/30 col-span-1">
+          <div>
+            <span class="text-[9px] uppercase text-slate-500 font-bold tracking-wider block">Worst</span>
+            <span id="analytics-worst-service" class="text-xs font-bold font-outfit text-slate-200 mt-2 block truncate">--</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Split Layout: Historical Trends and Latency Intelligence -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- Historical Trends Section -->
+        <div class="glass-panel rounded-2xl p-6 lg:col-span-2 flex flex-col justify-between relative overflow-hidden">
+          <div>
+            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+              <div>
+                <h3 class="text-base font-bold font-outfit text-slate-100 tracking-wide">
+                  <i class="fa-solid fa-chart-area mr-2 text-indigo-400"></i> Historical Uptime Trends
+                </h3>
+                <p class="text-[10px] text-slate-500 mt-0.5">Availability and execution statistics over time</p>
+              </div>
+              <div class="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+                <select id="analytics-service-select" onchange="onAnalyticsServiceChange()" class="bg-obsidian/85 border border-white/10 text-xs px-3 py-1.5 rounded-lg text-slate-300 focus:outline-none focus:border-indigo-500/40 font-semibold font-outfit max-w-[150px]">
+                  <!-- Populated dynamically -->
+                </select>
+                <div class="flex bg-slate-800/80 p-0.5 rounded-lg border border-white/5 text-[9px] font-mono">
+                  <button id="trend-range-7" onclick="changeTrendRange(7)" class="px-2 py-1 rounded hover:text-white text-slate-400">7D</button>
+                  <button id="trend-range-30" onclick="changeTrendRange(30)" class="px-2 py-1 rounded bg-indigo-600/30 text-indigo-300 font-bold">30D</button>
+                  <button id="trend-range-90" onclick="changeTrendRange(90)" class="px-2 py-1 rounded hover:text-white text-slate-400">90D</button>
+                </div>
+              </div>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div class="h-[200px] w-full relative">
+                <span class="text-[9px] font-mono text-slate-500 block mb-1 text-center font-bold">UPTIME PERCENTAGE TREND</span>
+                <canvas id="historicalUptimeTrendChart"></canvas>
+              </div>
+              <div class="h-[200px] w-full relative">
+                <span class="text-[9px] font-mono text-slate-500 block mb-1 text-center font-bold">DAILY CHECK SUCCESS vs FAILURE</span>
+                <canvas id="historicalSuccessFailChart"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Latency Intelligence Section -->
+        <div class="glass-panel rounded-2xl p-6 lg:col-span-1 flex flex-col justify-between relative overflow-hidden">
+          <div>
+            <div class="flex items-center justify-between mb-5">
+              <div>
+                <h3 class="text-base font-bold font-outfit text-slate-100 tracking-wide">
+                  <i class="fa-solid fa-gauge mr-2 text-pink-400"></i> Latency Intelligence
+                </h3>
+                <p class="text-[10px] text-slate-500 mt-0.5">Detailed latency metrics and service class</p>
+              </div>
+              <span id="latency-quality-badge" class="px-2 py-0.5 rounded-full border text-[9px] font-bold tracking-wider uppercase bg-slate-500/10 text-slate-400 border-white/5">
+                Unknown
+              </span>
+            </div>
+
+            <!-- Stats Grid -->
+            <div class="grid grid-cols-2 gap-3 mb-6">
+              <div class="bg-white/5 p-3 rounded-xl border border-white/5">
+                <span class="text-[8px] uppercase text-slate-500 font-bold tracking-wider">Average</span>
+                <span id="latency-stat-avg" class="text-sm font-extrabold font-outfit text-slate-100 mt-1 block">-- ms</span>
+              </div>
+              <div class="bg-white/5 p-3 rounded-xl border border-white/5">
+                <span class="text-[8px] uppercase text-slate-500 font-bold tracking-wider">Median</span>
+                <span id="latency-stat-median" class="text-sm font-extrabold font-outfit text-slate-100 mt-1 block">-- ms</span>
+              </div>
+              <div class="bg-white/5 p-3 rounded-xl border border-white/5">
+                <span class="text-[8px] uppercase text-slate-500 font-bold tracking-wider">95th Pct (P95)</span>
+                <span id="latency-stat-p95" class="text-sm font-extrabold font-outfit text-slate-100 mt-1 block">-- ms</span>
+              </div>
+              <div class="bg-white/5 p-3 rounded-xl border border-white/5">
+                <span class="text-[8px] uppercase text-slate-500 font-bold tracking-wider">99th Pct (P99)</span>
+                <span id="latency-stat-p99" class="text-sm font-extrabold font-outfit text-slate-100 mt-1 block">-- ms</span>
+              </div>
+              <div class="bg-white/5 p-3 rounded-xl border border-white/5">
+                <span class="text-[8px] uppercase text-slate-500 font-bold tracking-wider">Minimum</span>
+                <span id="latency-stat-min" class="text-sm font-extrabold font-outfit text-slate-100 mt-1 block">-- ms</span>
+              </div>
+              <div class="bg-white/5 p-3 rounded-xl border border-white/5">
+                <span class="text-[8px] uppercase text-slate-500 font-bold tracking-wider">Maximum</span>
+                <span id="latency-stat-max" class="text-sm font-extrabold font-outfit text-slate-100 mt-1 block">-- ms</span>
+              </div>
+            </div>
+
+            <!-- Percentile Comparison Bar -->
+            <div>
+              <div class="flex justify-between items-center text-[9px] text-slate-400 font-mono mb-2">
+                <span>Latency Spread (Min → Avg → P95 → Max)</span>
+              </div>
+              <div class="w-full h-3 rounded-full overflow-hidden flex latency-bar-container">
+                <div id="latency-bar-min" class="h-full bg-emerald-500 latency-bar-segment" style="width: 0%"></div>
+                <div id="latency-bar-avg" class="h-full bg-indigo-500 latency-bar-segment" style="width: 0%"></div>
+                <div id="latency-bar-p95" class="h-full bg-amber-500 latency-bar-segment" style="width: 0%"></div>
+                <div id="latency-bar-max" class="h-full bg-rose-500 latency-bar-segment" style="width: 0%"></div>
+              </div>
+              <div class="flex justify-between text-[8px] text-slate-500 font-mono mt-1">
+                <span>0 ms</span>
+                <span id="latency-bar-max-label">-- ms</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
       </div>
     </div>
 
@@ -497,6 +757,41 @@
       </div>
     </div>
 
+    <!-- Incident Timeline Section (Phase 3) -->
+    <div class="glass-panel rounded-2xl p-6 mb-8">
+      <div class="flex flex-col sm:flex-row items-center justify-between gap-4 mb-6 pb-3 border-b border-white/5">
+        <div>
+          <h2 class="text-lg font-bold font-outfit text-slate-100 tracking-wide">
+            <i class="fa-solid fa-clock-rotate-left mr-2 text-pink-400"></i> Incident Timeline
+          </h2>
+          <p class="text-xs text-slate-400">Real-time log of platform outages and incident lifecycles</p>
+        </div>
+        <div class="flex gap-2">
+          <span class="text-[10px] font-mono text-slate-500 bg-white/5 border border-white/5 py-1 px-2.5 rounded-lg">Last 20 incidents</span>
+        </div>
+      </div>
+      
+      <div class="overflow-x-auto w-full">
+        <table class="w-full text-left text-xs border-collapse">
+          <thead>
+            <tr class="border-b border-white/10 text-slate-400 text-[10px] uppercase tracking-wider font-semibold">
+              <th class="py-2.5 px-4">Incident ID</th>
+              <th class="py-2.5 px-4">Service</th>
+              <th class="py-2.5 px-4 text-center">Severity</th>
+              <th class="py-2.5 px-4">Downtime Started (IST)</th>
+              <th class="py-2.5 px-4 text-right">MTTR / Duration</th>
+              <th class="py-2.5 px-4 text-center">Status</th>
+            </tr>
+          </thead>
+          <tbody id="incidents-table-body" class="divide-y divide-white/5 text-slate-300">
+            <tr>
+              <td colspan="6" class="py-8 text-center text-slate-500">Loading incident history...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
     <!-- Table Grid Logs Feed -->
     <div class="glass-panel rounded-2xl p-6">
       <div class="flex flex-col sm:flex-row items-center justify-between gap-4 mb-6">
@@ -529,6 +824,105 @@
             </tr>
           </tbody>
         </table>
+      </div>
+    </div>
+
+    <!-- Executive Reports Collapsible Panel (Phase 3) -->
+    <div class="glass-panel rounded-2xl p-6 mb-8 mt-8">
+      <div class="flex items-center justify-between mb-6 pb-3 border-b border-white/5">
+        <div>
+          <h2 class="text-lg font-bold font-outfit text-slate-100 tracking-wide">
+            <i class="fa-solid fa-file-invoice-dollar mr-2 text-indigo-400"></i> Executive Reports &amp; SLA Compliance
+          </h2>
+          <p class="text-xs text-slate-400">Weekly, monthly summaries and service level compliance benchmarks</p>
+        </div>
+        <button onclick="toggleReportsPanel()" class="text-slate-400 hover:text-white bg-white/5 hover:bg-white/10 p-2 rounded-xl border border-white/5 transition-all">
+          <i id="reports-toggle-icon" class="fa-solid fa-chevron-down text-sm"></i>
+        </button>
+      </div>
+      
+      <div id="reports-panel-content" class="hidden space-y-6">
+        <!-- Report navigation tabs -->
+        <div class="flex border-b border-white/5 gap-2" id="report-tabs">
+          <button onclick="switchReportTab('weekly')" id="tab-weekly" class="px-4 py-2 border-b-2 border-indigo-500 text-indigo-300 font-medium text-xs font-outfit transition-all">Weekly Summary</button>
+          <button onclick="switchReportTab('monthly')" id="tab-monthly" class="px-4 py-2 border-b-2 border-transparent text-slate-400 hover:text-slate-200 font-medium text-xs font-outfit transition-all">Monthly Summary</button>
+          <button onclick="switchReportTab('benchmarks')" id="tab-benchmarks" class="px-4 py-2 border-b-2 border-transparent text-slate-400 hover:text-slate-200 font-medium text-xs font-outfit transition-all">Service Benchmarks</button>
+        </div>
+
+        <!-- Weekly/Monthly Report Template -->
+        <div id="report-summary-view" class="space-y-6">
+          <!-- Report Header Info & Download -->
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white/5 p-4 rounded-xl border border-white/5">
+            <div>
+              <span id="report-period-label" class="text-xs font-bold font-outfit text-slate-200">Period: --</span>
+              <p class="text-[10px] text-slate-500 mt-0.5">SLA Target Compliance: <span class="font-bold text-slate-400" id="report-sla-target-label">99.0%</span></p>
+            </div>
+            <button id="download-report-btn" onclick="downloadActiveReport()" class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold py-2 px-4 rounded-xl transition-all shadow-md shadow-indigo-600/10 flex items-center gap-2 self-start sm:self-auto">
+              <i class="fa-solid fa-download"></i> Download JSON
+            </button>
+          </div>
+
+          <!-- Highlight KPI Cards -->
+          <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+            <div class="bg-white/5 border border-white/5 p-4 rounded-xl">
+              <span class="text-[9px] uppercase text-slate-500 font-bold tracking-wider block">Uptime %</span>
+              <span id="rep-kpi-uptime" class="text-xl font-black font-outfit text-slate-100 mt-1 block">--%</span>
+            </div>
+            <div class="bg-white/5 border border-white/5 p-4 rounded-xl">
+              <span class="text-[9px] uppercase text-slate-500 font-bold tracking-wider block">Total Audits</span>
+              <span id="rep-kpi-audits" class="text-xl font-black font-outfit text-slate-100 mt-1 block">--</span>
+            </div>
+            <div class="bg-white/5 border border-white/5 p-4 rounded-xl">
+              <span class="text-[9px] uppercase text-slate-500 font-bold tracking-wider block">Total Failures</span>
+              <span id="rep-kpi-failures" class="text-xl font-black font-outfit text-slate-100 mt-1 block">--</span>
+            </div>
+            <div class="bg-white/5 border border-white/5 p-4 rounded-xl">
+              <span class="text-[9px] uppercase text-slate-500 font-bold tracking-wider block">Incidents</span>
+              <span id="rep-kpi-incidents" class="text-xl font-black font-outfit text-slate-100 mt-1 block">--</span>
+            </div>
+            <div class="bg-white/5 border border-white/5 p-4 rounded-xl col-span-2 md:col-span-1">
+              <span class="text-[9px] uppercase text-slate-500 font-bold tracking-wider block">Avg MTTR</span>
+              <span id="rep-kpi-mttr" class="text-xl font-black font-outfit text-slate-100 mt-1 block">--</span>
+            </div>
+          </div>
+
+          <!-- Service SLA Status Table -->
+          <div class="overflow-x-auto w-full">
+            <table class="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr class="border-b border-white/10 text-slate-400 text-[10px] uppercase tracking-wider font-semibold">
+                  <th class="py-2.5 px-4">Service</th>
+                  <th class="py-2.5 px-4 text-right">Uptime %</th>
+                  <th class="py-2.5 px-4 text-center">Rating</th>
+                  <th class="py-2.5 px-4 text-right">Avg Latency</th>
+                  <th class="py-2.5 px-4 text-right">P95 Latency</th>
+                  <th class="py-2.5 px-4 text-center">SLA Compliance</th>
+                </tr>
+              </thead>
+              <tbody id="report-services-table-body" class="divide-y divide-white/5 text-slate-300">
+                <!-- Injected dynamically -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Benchmarks View -->
+        <div id="report-benchmarks-view" class="hidden overflow-x-auto w-full">
+          <table class="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr class="border-b border-white/10 text-slate-400 text-[10px] uppercase tracking-wider font-semibold">
+                <th class="py-2.5 px-4">Service</th>
+                <th class="py-2.5 px-4 text-right">Uptime Rank</th>
+                <th class="py-2.5 px-4 text-right">Latency Rank</th>
+                <th class="py-2.5 px-4 text-right">Incident Frequency Rank</th>
+                <th class="py-2.5 px-4 text-center">SLA Target Met</th>
+              </tr>
+            </thead>
+            <tbody id="report-benchmarks-table-body" class="divide-y divide-white/5 text-slate-300">
+              <!-- Injected dynamically -->
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
 
@@ -579,6 +973,185 @@
     </div>
   </div>
 
+  <!-- Reliability Detail Modal (Phase 2.5) -->
+  <div id="reliability-modal" role="dialog" aria-modal="true" aria-labelledby="rel-modal-service-name" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-obsidian/85 backdrop-blur-md hidden" onclick="closeReliabilityModal()">
+    <div class="glass-panel w-full max-w-2xl rounded-2xl overflow-hidden shadow-2xl border border-white/10 flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200" onclick="event.stopPropagation()">
+      <!-- Modal Header -->
+      <div class="p-6 border-b border-white/5 flex items-center justify-between bg-white/5">
+        <div>
+          <div class="flex items-center gap-3">
+            <h3 id="rel-modal-service-name" class="font-outfit font-extrabold text-xl text-slate-100">Service Reliability Profile</h3>
+            <span id="rel-modal-rating-badge" class="px-2 py-0.5 rounded border text-[9px] font-bold tracking-wider uppercase bg-slate-500/10 text-slate-400 border-white/5">UNKNOWN</span>
+          </div>
+          <p id="rel-modal-service-id" class="text-[10px] font-mono text-indigo-400 mt-1 uppercase tracking-wider">SERVICE_ID</p>
+        </div>
+        <button onclick="closeReliabilityModal()" aria-label="Close modal" class="text-slate-400 hover:text-white bg-white/5 hover:bg-white/10 p-2 rounded-xl border border-white/5 transition-all">
+          <i class="fa-solid fa-xmark text-sm w-4 h-4 flex items-center justify-center"></i>
+        </button>
+      </div>
+
+      <!-- Modal Scrollable Content -->
+      <div class="p-6 overflow-y-auto space-y-6 text-slate-300 terminal-scrollbar">
+        <!-- Section 1: Uptime Windows -->
+        <div>
+          <h4 class="font-outfit font-bold text-sm text-slate-200 mb-3"><i class="fa-solid fa-clock-history mr-2 text-indigo-400"></i> Availability Windows</h4>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div class="bg-white/5 p-3.5 rounded-xl border border-white/5">
+              <span class="text-[8px] uppercase text-slate-500 font-bold tracking-wider block">Last 24 Hours</span>
+              <span id="rel-modal-uptime-24h" class="text-base font-black font-outfit text-slate-100 mt-1 block">--%</span>
+            </div>
+            <div class="bg-white/5 p-3.5 rounded-xl border border-white/5">
+              <span class="text-[8px] uppercase text-slate-500 font-bold tracking-wider block">Last 7 Days</span>
+              <span id="rel-modal-uptime-7d" class="text-base font-black font-outfit text-slate-100 mt-1 block">--%</span>
+            </div>
+            <div class="bg-white/5 p-3.5 rounded-xl border border-white/5">
+              <span class="text-[8px] uppercase text-slate-500 font-bold tracking-wider block">Last 30 Days</span>
+              <span id="rel-modal-uptime-30d" class="text-base font-black font-outfit text-slate-100 mt-1 block">--%</span>
+            </div>
+            <div class="bg-white/5 p-3.5 rounded-xl border border-white/5">
+              <span class="text-[8px] uppercase text-slate-500 font-bold tracking-wider block">All Time</span>
+              <span id="rel-modal-uptime-all" class="text-base font-black font-outfit text-slate-100 mt-1 block">--%</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 2: Audit History -->
+        <div>
+          <h4 class="font-outfit font-bold text-sm text-slate-200 mb-3"><i class="fa-solid fa-list-check mr-2 text-pink-400"></i> Audit Statistics (30 Days)</h4>
+          <div class="grid grid-cols-3 gap-4">
+            <div class="bg-white/5 p-3.5 rounded-xl border border-white/5">
+              <span class="text-[8px] uppercase text-slate-500 font-bold tracking-wider block">Total Checks</span>
+              <span id="rel-modal-checks-total" class="text-base font-black font-outfit text-slate-100 mt-1 block">--</span>
+            </div>
+            <div class="bg-white/5 p-3.5 rounded-xl border border-white/5">
+              <span class="text-[8px] uppercase text-slate-500 font-bold tracking-wider block text-emerald-400">Successful</span>
+              <span id="rel-modal-checks-success" class="text-base font-black font-outfit text-emerald-400 mt-1 block">--</span>
+            </div>
+            <div class="bg-white/5 p-3.5 rounded-xl border border-white/5">
+              <span class="text-[8px] uppercase text-slate-500 font-bold tracking-wider block text-rose-400">Failures</span>
+              <span id="rel-modal-checks-failed" class="text-base font-black font-outfit text-rose-400 mt-1 block">--</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 3: Latency Profile -->
+        <div>
+          <h4 class="font-outfit font-bold text-sm text-slate-200 mb-3"><i class="fa-solid fa-gauge mr-2 text-emerald-400"></i> Latency Intelligence Profile (30 Days)</h4>
+          <div class="grid grid-cols-2 sm:grid-cols-3 gap-4">
+            <div class="bg-white/5 p-3 rounded-xl border border-white/5">
+              <span class="text-[8px] uppercase text-slate-500 font-bold tracking-wider block">Average</span>
+              <span id="rel-modal-latency-avg" class="text-xs font-semibold font-mono text-slate-200 mt-1 block">-- ms</span>
+            </div>
+            <div class="bg-white/5 p-3 rounded-xl border border-white/5">
+              <span class="text-[8px] uppercase text-slate-500 font-bold tracking-wider block">Median</span>
+              <span id="rel-modal-latency-median" class="text-xs font-semibold font-mono text-slate-200 mt-1 block">-- ms</span>
+            </div>
+            <div class="bg-white/5 p-3 rounded-xl border border-white/5">
+              <span class="text-[8px] uppercase text-slate-500 font-bold tracking-wider block">95th Percentile</span>
+              <span id="rel-modal-latency-p95" class="text-xs font-semibold font-mono text-slate-200 mt-1 block">-- ms</span>
+            </div>
+            <div class="bg-white/5 p-3 rounded-xl border border-white/5">
+              <span class="text-[8px] uppercase text-slate-500 font-bold tracking-wider block">99th Percentile</span>
+              <span id="rel-modal-latency-p99" class="text-xs font-semibold font-mono text-slate-200 mt-1 block">-- ms</span>
+            </div>
+            <div class="bg-white/5 p-3 rounded-xl border border-white/5">
+              <span class="text-[8px] uppercase text-slate-500 font-bold tracking-wider block">Minimum</span>
+              <span id="rel-modal-latency-min" class="text-xs font-semibold font-mono text-slate-200 mt-1 block">-- ms</span>
+            </div>
+            <div class="bg-white/5 p-3 rounded-xl border border-white/5">
+              <span class="text-[8px] uppercase text-slate-500 font-bold tracking-wider block">Maximum</span>
+              <span id="rel-modal-latency-max" class="text-xs font-semibold font-mono text-slate-200 mt-1 block">-- ms</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 4: Outages and Health Flags -->
+        <div>
+          <h4 class="font-outfit font-bold text-sm text-slate-200 mb-3"><i class="fa-solid fa-triangle-exclamation mr-2 text-rose-400"></i> Reliability Indicators</h4>
+          <div class="bg-white/5 p-4 rounded-xl border border-white/5 space-y-3.5 text-xs">
+            <div class="flex justify-between items-center">
+              <span class="text-slate-400">Active Outage Trend</span>
+              <span id="rel-modal-trend-arrow" class="font-bold text-sm">--</span>
+            </div>
+            <div class="flex justify-between items-center border-t border-white/5 pt-3">
+              <span class="text-slate-400">Outage Outbreak Indicator</span>
+              <span id="rel-modal-outage-outbreak" class="px-2 py-0.5 rounded text-[10px] font-mono font-bold">--</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="p-4 bg-white/5 border-t border-white/5 flex justify-between items-center px-6">
+        <span class="text-[10px] text-slate-500 font-mono">SLA Target: 99.00%</span>
+        <span id="rel-modal-sla-status" class="text-[10px] font-mono font-bold">--</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Incident Detail Modal (Phase 3) -->
+  <div id="incident-modal" role="dialog" aria-modal="true" aria-labelledby="inc-modal-title" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-obsidian/85 backdrop-blur-md hidden" onclick="closeIncidentModal()">
+    <div class="glass-panel w-full max-w-2xl rounded-2xl overflow-hidden shadow-2xl border border-white/10 flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200" onclick="event.stopPropagation()">
+      <!-- Modal Header -->
+      <div class="p-6 border-b border-white/5 flex items-center justify-between bg-white/5">
+        <div>
+          <div class="flex items-center gap-3">
+            <h3 id="inc-modal-title" class="font-outfit font-extrabold text-xl text-slate-100">Incident Details</h3>
+            <span id="inc-modal-status-badge" class="px-2 py-0.5 rounded border text-[9px] font-bold tracking-wider uppercase">--</span>
+          </div>
+          <p id="inc-modal-service-name" class="text-xs text-slate-400 mt-1">Service: --</p>
+        </div>
+        <button onclick="closeIncidentModal()" class="text-slate-400 hover:text-white bg-white/5 hover:bg-white/10 p-2 rounded-xl border border-white/5 transition-all">
+          <i class="fa-solid fa-xmark text-sm w-4 h-4 flex items-center justify-center"></i>
+        </button>
+      </div>
+
+      <!-- Modal Scrollable Content -->
+      <div class="p-6 overflow-y-auto space-y-6 text-slate-300 terminal-scrollbar">
+        <!-- Incident Info Grid -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div class="bg-white/5 p-4 rounded-xl border border-white/5">
+            <span class="text-[10px] uppercase text-slate-500 font-semibold tracking-wider block font-outfit font-bold">Severity</span>
+            <span id="inc-modal-severity" class="text-xs font-bold block mt-1 uppercase text-center py-0.5 rounded">--</span>
+          </div>
+          <div class="bg-white/5 p-4 rounded-xl border border-white/5">
+            <span class="text-[10px] uppercase text-slate-500 font-semibold tracking-wider block font-outfit font-bold">MTTD</span>
+            <span id="inc-modal-mttd" class="text-xs font-bold font-mono block mt-1">--</span>
+          </div>
+          <div class="bg-white/5 p-4 rounded-xl border border-white/5">
+            <span class="text-[10px] uppercase text-slate-500 font-semibold tracking-wider block font-outfit font-bold">MTTR / Duration</span>
+            <span id="inc-modal-mttr" class="text-xs font-bold font-mono block mt-1">--</span>
+          </div>
+          <div class="bg-white/5 p-4 rounded-xl border border-white/5">
+            <span class="text-[10px] uppercase text-slate-500 font-semibold tracking-wider block font-outfit font-bold">Trigger Type</span>
+            <span id="inc-modal-trigger" class="text-xs font-mono text-indigo-400 block mt-1 truncate">--</span>
+          </div>
+        </div>
+
+        <!-- Failure Details -->
+        <div class="bg-white/5 p-4 rounded-xl border border-white/5">
+          <span class="text-[10px] uppercase text-slate-500 font-semibold tracking-wider block font-outfit font-bold">Root Cause / Failure Reason</span>
+          <p id="inc-modal-reason" class="text-xs text-slate-300 mt-1.5 leading-relaxed">--</p>
+        </div>
+
+        <!-- Timeline Log -->
+        <div>
+          <h4 class="font-outfit font-bold text-sm text-slate-200 mb-3"><i class="fa-solid fa-list mr-2 text-indigo-400"></i> Incident Lifecycle Events</h4>
+          <div id="inc-modal-timeline" class="space-y-4 pl-4 border-l-2 border-white/5 ml-2">
+            <!-- Timeline items injected here -->
+          </div>
+        </div>
+
+        <!-- Action / Acknowledge Block -->
+        <div id="inc-modal-action-container" class="flex justify-end pt-4 border-t border-white/5 hidden">
+          <button id="inc-modal-ack-btn" onclick="acknowledgeActiveIncident()" class="bg-neonOrange/20 hover:bg-neonOrange/30 text-neonOrange border border-neonOrange/30 text-xs font-bold py-2 px-5 rounded-xl transition-all flex items-center gap-2">
+            <i class="fa-solid fa-check"></i> Acknowledge Incident
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script>
     let latencyChartInstance = null;
     let availabilityChartInstance = null;
@@ -594,9 +1167,10 @@
 
     // Update real-time clock
     function updateClock() {
-      const options = { timeZone: 'Asia/Kolkata', hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' };
-      const formatter = new Intl.DateTimeFormat('en-IN', options);
-      document.getElementById('time-display').textContent = formatter.format(new Date()) + ' IST';
+      const now = new Date();
+      const options = { timeZone: 'Asia/Kolkata', hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' };
+      const formatter = new Intl.DateTimeFormat('en-US', options);
+      document.getElementById('time-display').textContent = formatter.format(now).toUpperCase() + ' IST';
     }
     setInterval(updateClock, 1000);
     updateClock();
@@ -606,7 +1180,7 @@
       const term = document.getElementById('terminal-stream');
       if (!term) return;
       
-      const ts = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      const ts = new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata', hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' }).toUpperCase();
       let colorClass = 'text-slate-400';
       let icon = '[INFO]';
       
@@ -641,7 +1215,27 @@
       if (refreshIcon) refreshIcon.classList.add('fa-spin');
       
       try {
+        // Clear analytics cache on manual refresh/sync
+        if (typeof analyticsCache !== 'undefined') {
+          for (const key in analyticsCache) {
+            delete analyticsCache[key];
+          }
+        }
+        
         await Promise.all([loadStatus(), loadLogs(), loadGitHubActionsStatus(), loadUptimeDashboard(), loadAlertsDashboard()]);
+        
+        if (typeof loadAnalyticsDashboard === 'function') {
+          await loadAnalyticsDashboard();
+        }
+
+        if (typeof loadIncidentsDashboard === 'function') {
+          await loadIncidentsDashboard();
+        }
+
+        if (typeof loadReportsDashboard === 'function') {
+          await loadReportsDashboard();
+        }
+        
         addToTerminal("System status and database logs synchronized successfully.", "success");
       } catch (err) {
         console.error('Refresh failed:', err);
@@ -739,26 +1333,51 @@
       setTimeout(() => div.remove(), 4000);
     }
 
-    // Helper to safely parse dates as UTC if they are naive
+    // Helper to safely parse dates as UTC if they are naive (no timezone info)
     function parseUTCDate(isoString) {
       if (!isoString) return new Date(NaN);
-      let formattedStr = isoString;
-      if (typeof isoString === 'string' && isoString.includes('T')) {
-        const timePart = isoString.split('T')[1] || '';
-        if (!isoString.endsWith('Z') && !timePart.includes('+') && !timePart.includes('-')) {
-          formattedStr = isoString + 'Z';
+      let s = isoString.trim().replace(' ', 'T');
+
+      // Only inspect the TIME portion (after 'T') for offset markers.
+      // Do NOT check the full string — the date portion always contains '-'.
+      const tIdx = s.indexOf('T');
+      if (tIdx === -1) {
+        // Date-only string like "2026-06-24" — treat as midnight UTC
+        if (!s.endsWith('Z')) s = s + 'T00:00:00Z';
+      } else {
+        const timePart = s.slice(tIdx + 1);
+        const hasOffset = s.endsWith('Z') || timePart.includes('+') || timePart.includes('-');
+        if (!hasOffset) {
+          // Naive timestamp — assume it's UTC (how MongoDB stores it)
+          s = s + 'Z';
         }
       }
-      return new Date(formattedStr);
+      return new Date(s);
     }
 
-    // Format ISO string to IST local time
+    // Format ISO string to IST local time in 12-hour AM/PM format
     function formatIST(isoString) {
       if (!isoString || isoString === 'Never') return 'Never';
       try {
         const date = parseUTCDate(isoString);
         if (isNaN(date.getTime())) return 'Never';
-        return date.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false, month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+        // IST is UTC + 5.5 hours
+        const istDate = new Date(date.getTime() + 5.5 * 60 * 60 * 1000);
+
+        const day = String(istDate.getUTCDate()).padStart(2, '0');
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const month = months[istDate.getUTCMonth()];
+
+        let hours24 = istDate.getUTCHours();
+        const minutes = String(istDate.getUTCMinutes()).padStart(2, '0');
+        const seconds = String(istDate.getUTCSeconds()).padStart(2, '0');
+        const ampm = hours24 >= 12 ? 'PM' : 'AM';
+        let hours12 = hours24 % 12;
+        if (hours12 === 0) hours12 = 12;
+        const hoursStr = String(hours12).padStart(2, '0');
+
+        return `${day} ${month}, ${hoursStr}:${minutes}:${seconds} ${ampm}`;
       } catch (e) {
         return 'Never';
       }
@@ -1378,7 +1997,11 @@
 
     // Close modal with Escape key
     window.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') closeModal();
+      if (e.key === 'Escape') {
+        closeModal();
+        if (typeof closeReliabilityModal === 'function') closeReliabilityModal();
+        if (typeof closeIncidentModal === 'function') closeIncidentModal();
+      }
     });
 
     async function loadGitHubActionsStatus() {
@@ -1856,6 +2479,440 @@
       const mins = Math.floor(seconds / 60);
       const secs = Math.round(seconds % 60);
       return secs > 0 ? `${mins}m ${secs}s` : `${mins}m`;
+    }
+
+
+    // ── Enterprise Analytics Scripting (Phase 2) ───────────────────────────
+    const analyticsCache = {};
+    const CACHE_TTL = {
+      platform:    5 * 60 * 1000,  // 5 minutes
+      ranking:     5 * 60 * 1000,  // 5 minutes
+      trend:       3 * 60 * 1000,  // 3 minutes
+      latency:     5 * 60 * 1000,  // 5 minutes
+      reliability: 5 * 60 * 1000,  // 5 minutes
+    };
+
+    async function fetchWithCache(url, ttlMs) {
+      const now = Date.now();
+      if (analyticsCache[url] && now - analyticsCache[url].ts < ttlMs) {
+        return analyticsCache[url].data;
+      }
+      const data = await fetch(url).then(r => {
+        if (!r.ok) throw new Error(`HTTP error! status: ${r.status}`);
+        return r.json();
+      });
+      analyticsCache[url] = { data, ts: now };
+      return data;
+    }
+
+    function animateCounter(elId, target, decimals = 1, suffix = '') {
+      const el = document.getElementById(elId);
+      if (!el) return;
+      const duration = 1000;
+      const start = parseFloat(el.dataset.currentVal || '0');
+      const startTime = performance.now();
+      
+      const step = (ts) => {
+        const progress = Math.min((ts - startTime) / duration, 1);
+        const eased = 1 - Math.pow(1 - progress, 3); // ease-out cubic
+        const current = start + (target - start) * eased;
+        el.textContent = current.toFixed(decimals) + suffix;
+        if (progress < 1) {
+          requestAnimationFrame(step);
+        } else {
+          el.dataset.currentVal = target;
+          el.textContent = target.toFixed(decimals) + suffix;
+        }
+      };
+      requestAnimationFrame(step);
+    }
+
+    let currentTrendDays = 30;
+    let trendChartInstanceObj = null;
+    let successFailChartInstanceObj = null;
+
+    async function loadAnalyticsDashboard() {
+      const errorDiv = document.getElementById('analytics-engine-error');
+      const contentDiv = document.getElementById('analytics-engine-content');
+      
+      try {
+        if (errorDiv) errorDiv.classList.add('hidden');
+        if (contentDiv) contentDiv.classList.remove('hidden');
+        
+        // 1. Fetch & render platform overview
+        const platformData = await fetchWithCache('/api/analytics/platform?days=30', CACHE_TTL.platform);
+        renderPlatformHealthOverview(platformData);
+
+        // 2. Populate service select dropdown
+        populateAnalyticsServiceSelect();
+
+        // 3. Load trend & latency intelligence for selected service
+        await loadServiceAnalytics();
+
+        // 4. Load enhanced reliability rankings (Leaderboard)
+        await loadAnalyticsLeaderboard();
+        
+        document.getElementById('analytics-freshness').textContent = 'Live Synced';
+      } catch (err) {
+        console.error("Error loading analytics:", err);
+        addToTerminal(`Failed to load analytics dashboard: ${err.message || err}`, "error");
+        
+        if (errorDiv && contentDiv) {
+          errorDiv.classList.remove('hidden');
+          contentDiv.classList.add('hidden');
+          const errorMsg = document.getElementById('analytics-error-message');
+          if (errorMsg) {
+            errorMsg.textContent = `Connection error: ${err.message || 'Server returned an invalid response'}.`;
+          }
+        }
+      }
+    }
+
+    function retryAnalyticsLoad() {
+      if (typeof analyticsCache !== 'undefined') {
+        for (const key in analyticsCache) {
+          delete analyticsCache[key];
+        }
+      }
+      const errorDiv = document.getElementById('analytics-engine-error');
+      const contentDiv = document.getElementById('analytics-engine-content');
+      if (errorDiv) errorDiv.classList.add('hidden');
+      if (contentDiv) contentDiv.classList.remove('hidden');
+      loadAnalyticsDashboard();
+    }
+
+    function populateAnalyticsServiceSelect() {
+      const select = document.getElementById('analytics-service-select');
+      if (!select) return;
+      
+      const services = Object.values(cachedStatusMap);
+      if (services.length === 0) return;
+      
+      const currentSelected = select.value;
+      select.innerHTML = '';
+      
+      services.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s.service_id || s.name.replace(/\s+/g, '-').toLowerCase();
+        opt.textContent = s.name;
+        select.appendChild(opt);
+      });
+      
+      // Restore selected value if it exists, otherwise default to first
+      if (currentSelected && Array.from(select.options).some(o => o.value === currentSelected)) {
+        select.value = currentSelected;
+      }
+    }
+
+    async function loadServiceAnalytics() {
+      const select = document.getElementById('analytics-service-select');
+      if (!select || !select.value) return;
+      
+      const serviceId = select.value;
+      
+      // Load Historical Trends
+      try {
+        const trendData = await fetchWithCache(`/api/analytics/trend/${serviceId}?days=${currentTrendDays}`, CACHE_TTL.trend);
+        renderTrendCharts(trendData);
+      } catch (err) {
+        console.error(`Error loading trend for ${serviceId}:`, err);
+      }
+      
+      // Load Latency Intelligence
+      try {
+        const latencyData = await fetchWithCache(`/api/analytics/latency/${serviceId}?days=30`, CACHE_TTL.latency);
+        renderLatencyIntelligence(latencyData);
+      } catch (err) {
+        console.error(`Error loading latency intelligence for ${serviceId}:`, err);
+      }
+    }
+
+    function onAnalyticsServiceChange() {
+      loadServiceAnalytics();
+    }
+
+    function changeTrendRange(days) {
+      currentTrendDays = days;
+      
+      const ranges = [7, 30, 90];
+      ranges.forEach(r => {
+        const btn = document.getElementById(`trend-range-${r}`);
+        if (btn) {
+          if (r === days) {
+            btn.className = "px-2 py-1 rounded bg-indigo-600/30 text-indigo-300 font-bold";
+          } else {
+            btn.className = "px-2 py-1 rounded hover:text-white text-slate-400";
+          }
+        }
+      });
+      
+      loadServiceAnalytics();
+    }
+
+    function renderPlatformHealthOverview(data) {
+      if (!data) return;
+      
+      const uptimePct = (data.overall_uptime_pct !== null && data.overall_uptime_pct !== undefined && !isNaN(data.overall_uptime_pct)) ? data.overall_uptime_pct : 100.0;
+      animateCounter('analytics-platform-uptime', uptimePct, 2, '%');
+      
+      const checksEl = document.getElementById('analytics-platform-checks');
+      if (checksEl) checksEl.textContent = (data.total_checks || 0).toLocaleString();
+      
+      const failuresEl = document.getElementById('analytics-platform-failures');
+      if (failuresEl) failuresEl.textContent = (data.total_failures || 0).toLocaleString();
+      
+      const aboveEl = document.getElementById('analytics-above-sla');
+      if (aboveEl) aboveEl.textContent = data.services_above_sla || 0;
+      
+      const belowEl = document.getElementById('analytics-below-sla');
+      if (belowEl) belowEl.textContent = data.services_below_sla || 0;
+      
+      animateCounter('analytics-avg-latency', data.avg_latency_ms || 0, 1, ' ms');
+      animateCounter('analytics-p95-latency', data.p95_latency_ms || 0, 1, ' ms');
+      
+      const bestServiceSummary = data.service_summaries && data.service_summaries.find(s => s.service_id === data.best_service);
+      const bestServiceName = bestServiceSummary ? bestServiceSummary.service_name : (data.best_service || 'N/A');
+      
+      const worstServiceSummary = data.service_summaries && data.service_summaries.find(s => s.service_id === data.worst_service);
+      const worstServiceName = worstServiceSummary ? worstServiceSummary.service_name : (data.worst_service || 'N/A');
+      
+      const bestEl = document.getElementById('analytics-best-service');
+      if (bestEl) {
+        bestEl.textContent = bestServiceName;
+        bestEl.title = bestServiceName;
+      }
+      
+      const worstEl = document.getElementById('analytics-worst-service');
+      if (worstEl) {
+        worstEl.textContent = worstServiceName;
+        worstEl.title = worstServiceName;
+      }
+    }
+
+    function renderTrendCharts(trendData) {
+      if (typeof ChartHelpers === 'undefined') return;
+      
+      // Destroy existing chart instances safely
+      trendChartInstanceObj = ChartHelpers.destroyIfExists(trendChartInstanceObj);
+      successFailChartInstanceObj = ChartHelpers.destroyIfExists(successFailChartInstanceObj);
+      
+      if (!trendData || trendData.length === 0) return;
+      
+      trendChartInstanceObj = ChartHelpers.renderTrendChart('historicalUptimeTrendChart', trendData);
+      successFailChartInstanceObj = ChartHelpers.renderSuccessFailChart('historicalSuccessFailChart', trendData);
+    }
+
+    function getLatencyQuality(avgMs) {
+      if (avgMs < 500) return { label: 'Excellent', cls: 'analytics-badge-excellent' };
+      if (avgMs < 1000) return { label: 'Good', cls: 'analytics-badge-good' };
+      if (avgMs < 2000) return { label: 'Warning', cls: 'analytics-badge-warning' };
+      return { label: 'Critical', cls: 'analytics-badge-critical' };
+    }
+
+    function renderLatencyIntelligence(data) {
+      if (!data) return;
+      
+      const p = data.percentiles || {};
+      const avg = p.avg_ms || 0;
+      const p95 = p.p95_ms || 0;
+      const max = p.max_ms || 0;
+      
+      document.getElementById('latency-stat-avg').textContent = avg.toFixed(1) + ' ms';
+      document.getElementById('latency-stat-median').textContent = (p.median_ms || 0).toFixed(1) + ' ms';
+      document.getElementById('latency-stat-p95').textContent = p95.toFixed(1) + ' ms';
+      document.getElementById('latency-stat-p99').textContent = (p.p99_ms || 0).toFixed(1) + ' ms';
+      document.getElementById('latency-stat-min').textContent = (p.min_ms || 0).toFixed(1) + ' ms';
+      document.getElementById('latency-stat-max').textContent = max.toFixed(1) + ' ms';
+      
+      // Update badge
+      const quality = getLatencyQuality(avg);
+      const badge = document.getElementById('latency-quality-badge');
+      if (badge) {
+        badge.textContent = quality.label;
+        badge.className = `px-2 py-0.5 rounded-full border text-[9px] font-bold tracking-wider uppercase ${quality.cls}`;
+      }
+      
+      // Update percentile comparison bars
+      // Calculate widths relative to maximum latency
+      const maxVal = Math.max(max, 100);
+      document.getElementById('latency-bar-max-label').textContent = maxVal.toFixed(0) + ' ms';
+      
+      const minPct = ((p.min_ms || 0) / maxVal) * 100;
+      const avgPct = (avg / maxVal) * 100;
+      const p95Pct = (p95 / maxVal) * 100;
+      const maxPct = (max / maxVal) * 100;
+      
+      document.getElementById('latency-bar-min').style.width = Math.max(minPct, 2) + '%';
+      document.getElementById('latency-bar-avg').style.width = Math.max(avgPct - minPct, 2) + '%';
+      document.getElementById('latency-bar-p95').style.width = Math.max(p95Pct - avgPct, 2) + '%';
+      document.getElementById('latency-bar-max').style.width = Math.max(maxPct - p95Pct, 2) + '%';
+    }
+
+    async function loadAnalyticsLeaderboard() {
+      try {
+        const rankingData = await fetchWithCache('/api/analytics/ranking?days=30', CACHE_TTL.ranking);
+        renderReliabilityLeaderboard(rankingData);
+      } catch (err) {
+        console.error("Error loading rankings:", err);
+      }
+    }
+
+    function renderReliabilityLeaderboard(rankingData) {
+      const panel = document.getElementById('reliability-rankings-panel');
+      if (!panel) return;
+      
+      panel.innerHTML = '';
+      
+      const services = (rankingData && rankingData.ranked_services) ? rankingData.ranked_services : [];
+      
+      if (services.length === 0) {
+        panel.innerHTML = `<p class="text-slate-500 text-xs col-span-full">No rankings available.</p>`;
+        return;
+      }
+      
+      let html = `
+        <div class="overflow-x-auto w-full col-span-full">
+          <table class="w-full text-left text-xs border-collapse leaderboard-table">
+            <thead>
+              <tr class="border-b border-white/5 text-slate-400 text-[10px] uppercase tracking-wider font-semibold">
+                <th class="py-2.5 px-4">Rank</th>
+                <th class="py-2.5 px-4">Service</th>
+                <th class="py-2.5 px-4 text-right">Uptime %</th>
+                <th class="py-2.5 px-4 text-center">Rating</th>
+                <th class="py-2.5 px-4 text-center">Trend</th>
+                <th class="py-2.5 px-4 text-right">Checks</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-white/5 text-slate-300">
+      `;
+      
+      services.forEach((s, idx) => {
+        let ratingClass = 'analytics-badge-excellent';
+        if (s.reliability_rating === 'Excellent') ratingClass = 'analytics-badge-excellent';
+        else if (s.reliability_rating === 'Good') ratingClass = 'analytics-badge-good';
+        else if (s.reliability_rating === 'Warning') ratingClass = 'analytics-badge-warning';
+        else if (s.reliability_rating === 'Critical') ratingClass = 'analytics-badge-critical';
+        
+        let trendColor = 'text-slate-400';
+        if (s.trend_indicator === '↑') trendColor = 'text-emerald-400';
+        else if (s.trend_indicator === '↓') trendColor = 'text-rose-400';
+        
+        let highlightClass = '';
+        if (idx === 0) {
+          highlightClass = 'gold-glow';
+        } else if (idx === services.length - 1 && services.length > 1) {
+          highlightClass = 'red-glow';
+        }
+        
+        const uptimeStr = (s.uptime_pct !== null && s.uptime_pct !== undefined && !isNaN(s.uptime_pct)) ? s.uptime_pct.toFixed(2) + '%' : '--%';
+        const checksStr = (s.total_checks !== null && s.total_checks !== undefined && !isNaN(s.total_checks)) ? s.total_checks.toLocaleString() : '--';
+        
+        html += `
+          <tr onclick="openReliabilityModal('${s.service_id}')" class="cursor-pointer ${highlightClass} h-10">
+            <td class="py-2 px-4 font-mono font-bold text-slate-400">#${idx + 1}</td>
+            <td class="py-2 px-4 font-semibold text-slate-100 font-outfit">${s.service_name}</td>
+            <td class="py-2 px-4 text-right font-mono font-bold text-slate-200">${uptimeStr}</td>
+            <td class="py-2 px-4 text-center">
+              <span class="px-2 py-0.5 rounded text-[8px] font-bold ${ratingClass}">${s.reliability_rating}</span>
+            </td>
+            <td class="py-2 px-4 text-center font-bold text-xs ${trendColor}">${s.trend_indicator || '→'}</td>
+            <td class="py-2 px-4 text-right font-mono text-slate-400">${checksStr}</td>
+          </tr>
+        `;
+      });
+      
+      html += `
+            </tbody>
+          </table>
+        </div>
+      `;
+      
+      panel.innerHTML = html;
+    }
+
+    // Preserve existing renderReliabilityRankings name but delegate to loadAnalyticsLeaderboard
+    function renderReliabilityRankings() {
+      loadAnalyticsLeaderboard();
+    }
+
+    async function openReliabilityModal(serviceId) {
+      try {
+        const modal = document.getElementById('reliability-modal');
+        if (!modal) return;
+        
+        modal.classList.remove('hidden');
+        
+        const data = await fetchWithCache(`/api/analytics/reliability/${serviceId}`, CACHE_TTL.reliability);
+        
+        document.getElementById('rel-modal-service-name').textContent = data.service_name || 'N/A';
+        document.getElementById('rel-modal-service-id').textContent = data.service_id || 'N/A';
+        
+        let ratingClass = 'analytics-badge-excellent';
+        if (data.reliability_rating === 'Excellent') ratingClass = 'analytics-badge-excellent';
+        else if (data.reliability_rating === 'Good') ratingClass = 'analytics-badge-good';
+        else if (data.reliability_rating === 'Warning') ratingClass = 'analytics-badge-warning';
+        else if (data.reliability_rating === 'Critical') ratingClass = 'analytics-badge-critical';
+        
+        const badge = document.getElementById('rel-modal-rating-badge');
+        badge.textContent = data.reliability_rating || 'UNKNOWN';
+        badge.className = `px-2 py-0.5 rounded border text-[9px] font-bold tracking-wider uppercase ${ratingClass}`;
+        
+        const formatPct = (val) => (val !== null && val !== undefined && !isNaN(val)) ? val.toFixed(2) + '%' : '--%';
+        const formatChecks = (val) => (val !== null && val !== undefined && !isNaN(val)) ? val.toLocaleString() : '--';
+        const formatLatency = (val) => (val !== null && val !== undefined && !isNaN(val)) ? val.toFixed(1) + ' ms' : '-- ms';
+
+        document.getElementById('rel-modal-uptime-24h').textContent = formatPct(data.uptime_24h);
+        document.getElementById('rel-modal-uptime-7d').textContent = formatPct(data.uptime_7d);
+        document.getElementById('rel-modal-uptime-30d').textContent = formatPct(data.uptime_30d);
+        document.getElementById('rel-modal-uptime-all').textContent = formatPct(data.uptime_all_time);
+        
+        document.getElementById('rel-modal-checks-total').textContent = formatChecks(data.total_checks);
+        document.getElementById('rel-modal-checks-success').textContent = formatChecks(data.success_checks);
+        document.getElementById('rel-modal-checks-failed').textContent = formatChecks(data.failure_checks);
+        
+        const lat = data.latency_30d || {};
+        document.getElementById('rel-modal-latency-avg').textContent = formatLatency(lat.avg_ms);
+        document.getElementById('rel-modal-latency-median').textContent = formatLatency(lat.median_ms);
+        document.getElementById('rel-modal-latency-p95').textContent = formatLatency(lat.p95_ms);
+        document.getElementById('rel-modal-latency-p99').textContent = formatLatency(lat.p99_ms);
+        document.getElementById('rel-modal-latency-min').textContent = formatLatency(lat.min_ms);
+        document.getElementById('rel-modal-latency-max').textContent = formatLatency(lat.max_ms);
+        
+        let trendColor = 'text-slate-400';
+        if (data.trend_indicator === '↑') trendColor = 'text-emerald-400';
+        else if (data.trend_indicator === '↓') trendColor = 'text-rose-400';
+        
+        const trendEl = document.getElementById('rel-modal-trend-arrow');
+        trendEl.textContent = data.trend_indicator || '→';
+        trendEl.className = `font-bold text-sm ${trendColor}`;
+        
+        const outbreakEl = document.getElementById('rel-modal-outage-outbreak');
+        if (data.consecutive_outages) {
+          outbreakEl.textContent = 'CONSECUTIVE FAILURES';
+          outbreakEl.className = 'px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-rose-500/10 text-rose-400 border border-rose-500/20';
+        } else {
+          outbreakEl.textContent = 'STABLE';
+          outbreakEl.className = 'px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
+        }
+        
+        const slaEl = document.getElementById('rel-modal-sla-status');
+        const metSla = (data.sla_met_30d === true);
+        if (metSla) {
+          slaEl.textContent = 'SLA MET';
+          slaEl.className = 'text-[10px] font-mono font-bold text-emerald-400';
+        } else {
+          slaEl.textContent = 'SLA BREACHED';
+          slaEl.className = 'text-[10px] font-mono font-bold text-rose-400';
+        }
+      } catch (err) {
+        console.error("Error opening reliability modal:", err);
+        closeReliabilityModal();
+      }
+    }
+
+    function closeReliabilityModal() {
+      const modal = document.getElementById('reliability-modal');
+      if (modal) modal.classList.add('hidden');
     }
 
     // Auto-refresh every 30 seconds
