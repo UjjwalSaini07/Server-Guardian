@@ -35,5 +35,7 @@ jobs:
           EMAIL_PORT: ${{ secrets.EMAIL_PORT }}
           EMAIL_USER: ${{ secrets.EMAIL_USER }}
           EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+          EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
           ENABLE_STOCK_SCRAPER: ${{ secrets.ENABLE_STOCK_SCRAPER }}
+          ALERT_RECIPIENTS: ${{ secrets.ALERT_RECIPIENTS }}
         run: python monitor_runner.py
