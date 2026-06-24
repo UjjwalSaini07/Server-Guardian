@@ -54,7 +54,11 @@ SERVICES_CONFIG = [
         "log_expiry_hours": 1,
         "allowed_hours_ist": None,  # 24/7 Keep Alive
         "allowed_days": [0, 1, 2, 3, 4, 5, 6],
-        "parse_analytics": True
+        "parse_analytics": True,
+        "health_schema": {
+            "required_fields": ["status"],
+            "expected_values": {"status": "healthy"}
+        }
     },
     {
         "service_id": "visionretail_iq",
@@ -68,7 +72,11 @@ SERVICES_CONFIG = [
         "log_expiry_hours": 1,
         "allowed_hours_ist": None,  # 24/7 Keep Alive
         "allowed_days": [0, 1, 2, 3, 4, 5, 6],
-        "parse_analytics": True
+        "parse_analytics": True,
+        "health_schema": {
+            "required_fields": ["status"],
+            "expected_values": {"status": "healthy"}
+        }
     }
 ]
 
