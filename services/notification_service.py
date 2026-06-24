@@ -6,6 +6,7 @@ from services.email_provider import (
     format_service_recovered_template,
     format_high_latency_template
 )
+from services import incident_service
 
 def format_duration(seconds):
     """Format duration in seconds to a human-readable string."""
@@ -49,6 +50,16 @@ def process_alert(service_id, service_name, alert_type, severity, message, detai
                     },
                     upsert=True
                 )
+                # ── Phase 3B: Open formal incident ──────────────────────────
+                incident_service.open_incident(
+                    service_id=service_id,
+                    service_name=service_name,
+                    trigger_alert_type=alert_type,
+                    failure_reason=details.get("reason"),
+                    severity="critical",
+                    mongo_client=mongo_client,
+                )
+                # ────────────────────────────────────────────────────────────
                 send_email = True
                 subject = f"🚨 Service Down - {service_name}"
                 
@@ -100,6 +111,12 @@ def process_alert(service_id, service_name, alert_type, severity, message, detai
                     },
                     upsert=True
                 )
+                # ── Phase 3B: Resolve formal incident ───────────────────────
+                incident_service.resolve_incident(
+                    service_id=service_id,
+                    mongo_client=mongo_client,
+                )
+                # ────────────────────────────────────────────────────────────
                 send_email = True
                 subject = f"✅ Service Recovered - {service_name}"
                 html_content = format_service_recovered_template(

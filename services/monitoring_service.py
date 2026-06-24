@@ -6,6 +6,8 @@ from zoneinfo import ZoneInfo
 from pymongo import MongoClient, ASCENDING
 from config import SERVICES_CONFIG
 
+MONITOR_VERSION = "1.0"
+
 def is_within_allowed_hours(allowed_hours_ist, allowed_days):
     """Check if current time is within active hours (IST) and active days."""
     ist_now = datetime.now(ZoneInfo("Asia/Kolkata"))
@@ -43,6 +45,7 @@ def init_db_indexes(mongo_client):
 def execute_ping(service, mongo_client):
     """Ping a service, record latency, parse metrics, and save to MongoDB collections."""
     from services.analytics_service import parse_health_json
+    from services.health_check_service import evaluate_health_score
     
     name = service["name"]
     url = service["url"]
@@ -139,13 +142,35 @@ def execute_ping(service, mongo_client):
             "details": analytics.get("details", {}) if parse_analytics else {}
         }
         
+        is_success = status_code == 200
+
+        # Deep health scoring via health_check_service (Phase 3A)
+        health_score, health_detail = evaluate_health_score(
+            response_json=parsed_json,
+            status_code=status_code,
+            latency_ms=latency,
+            service_config=service,
+        )
+
         history_data = {
-            "service_id": service.get("service_id", "quillix_api"),
-            "service_name": name,
-            "timestamp": now,
-            "status": "success" if status_code == 200 else "failure",
-            "latency_ms": latency,
-            "failure_reason": None if status_code == 200 else f"HTTP status code {status_code}"
+            # -- Core fields (unchanged) --
+            "service_id":     service.get("service_id", "quillix_api"),
+            "service_name":   name,
+            "timestamp":      now,
+            "status":         "success" if is_success else "failure",
+            "status_code":    status_code,
+            "latency_ms":     latency,
+            "failure_reason": None if is_success else f"HTTP status code {status_code}",
+            # -- Extended optional fields --
+            "health_score":      health_score,
+            "health_detail":     health_detail,
+            "response_size":     len(response_text) if response_text else None,
+            "response_time_ms":  latency,
+            "api_status":        is_success,
+            "database_status":   health_detail.get("db_ok"),
+            "cache_status":      health_detail.get("cache_ok"),
+            "error_type":        None,
+            "monitor_version":   MONITOR_VERSION,
         }
         
         sa_db = mongo_client["ServerAutomation"]
@@ -195,12 +220,23 @@ def execute_ping(service, mongo_client):
         }
         
         history_data = {
-            "service_id": service.get("service_id", "quillix_api"),
-            "service_name": name,
-            "timestamp": now,
-            "status": "failure",
-            "latency_ms": latency,
-            "failure_reason": str(e)
+            # -- Core fields (unchanged) --
+            "service_id":     service.get("service_id", "quillix_api"),
+            "service_name":   name,
+            "timestamp":      now,
+            "status":         "failure",
+            "status_code":    None,
+            "latency_ms":     latency,
+            "failure_reason": str(e),
+            # -- Extended optional fields --
+            "health_score":     0,
+            "response_size":    None,
+            "response_time_ms": latency,
+            "api_status":       False,
+            "database_status":  None,
+            "cache_status":     None,
+            "error_type":       type(e).__name__,
+            "monitor_version":  MONITOR_VERSION,
         }
         
         try:
