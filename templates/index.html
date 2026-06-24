@@ -200,13 +200,106 @@
       </div>
     </div>
 
-    <!-- Status Cards Grid -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8" id="servers-grid">
-      <!-- Skeleton Loading Cards -->
-      <div class="glass-card rounded-2xl p-6 h-48 shimmer"></div>
-      <div class="glass-card rounded-2xl p-6 h-48 shimmer"></div>
-      <div class="glass-card rounded-2xl p-6 h-48 shimmer"></div>
-      <div class="glass-card rounded-2xl p-6 h-48 shimmer"></div>
+    </div>
+
+    <!-- Enterprise Uptime & Reliability Dashboard -->
+    <div class="mb-8">
+      <div class="flex items-center justify-between mb-6">
+        <div>
+          <h2 class="text-xl font-bold font-outfit text-slate-100 tracking-wide">
+            <i class="fa-solid fa-shield-halved mr-2 text-indigo-400"></i> Uptime & Reliability Engine
+          </h2>
+          <p class="text-xs text-slate-400">Production-grade availability analytics & health trends</p>
+        </div>
+        <div class="flex gap-2">
+          <!-- Time range tabs -->
+          <button id="uptime-range-1dh" onclick="changeUptimeRange(1)" class="bg-slate-800 text-slate-400 border border-white/5 text-[10px] font-mono py-1 px-2.5 rounded-lg hover:bg-slate-700 hover:text-slate-300">24H</button>
+          <button id="uptime-range-7d" onclick="changeUptimeRange(7)" class="bg-slate-800 text-slate-400 border border-white/5 text-[10px] font-mono py-1 px-2.5 rounded-lg hover:bg-slate-700 hover:text-slate-300">7D</button>
+          <button id="uptime-range-30d" onclick="changeUptimeRange(30)" class="bg-indigo-600/30 text-indigo-300 border border-indigo-500/20 text-[10px] font-mono py-1 px-2.5 rounded-lg">30D</button>
+        </div>
+      </div>
+
+      <!-- Overview Cards Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <!-- Platform Uptime Card -->
+        <div class="glass-card rounded-2xl p-5 flex flex-col justify-between border-t-2 border-t-indigo-500/30">
+          <div>
+            <span class="text-[9px] uppercase text-slate-500 font-bold tracking-wider block">Platform Uptime</span>
+            <span id="overview-platform-uptime" class="text-2xl font-black font-outfit text-slate-100 tracking-tight block mt-1">100.00%</span>
+          </div>
+          <span class="text-[9px] text-slate-500 block mt-2">Weighted average</span>
+        </div>
+        
+        <!-- Best Service Card -->
+        <div class="glass-card rounded-2xl p-5 flex flex-col justify-between border-t-2 border-t-emerald-500/30">
+          <div>
+            <span class="text-[9px] uppercase text-slate-500 font-bold tracking-wider block">Most Reliable Service</span>
+            <span id="overview-best-service" class="text-sm font-extrabold font-outfit text-slate-100 truncate block mt-1.5">-</span>
+          </div>
+          <span class="text-[9px] text-emerald-400 font-semibold block mt-2"><i class="fa-solid fa-circle-check mr-1"></i> Highest availability</span>
+        </div>
+
+        <!-- Worst Service Card -->
+        <div class="glass-card rounded-2xl p-5 flex flex-col justify-between border-t-2 border-t-rose-500/30">
+          <div>
+            <span class="text-[9px] uppercase text-slate-500 font-bold tracking-wider block">Least Reliable Service</span>
+            <span id="overview-worst-service" class="text-sm font-extrabold font-outfit text-slate-100 truncate block mt-1.5">-</span>
+          </div>
+          <span id="overview-worst-status" class="text-[9px] text-rose-400 font-semibold block mt-2"><i class="fa-solid fa-triangle-exclamation mr-1"></i> Action recommended</span>
+        </div>
+
+        <!-- Total Checks Card -->
+        <div class="glass-card rounded-2xl p-5 flex flex-col justify-between border-t-2 border-t-pink-500/30">
+          <div>
+            <span class="text-[9px] uppercase text-slate-500 font-bold tracking-wider block">Total Audits</span>
+            <span id="overview-total-checks" class="text-2xl font-black font-outfit text-slate-100 tracking-tight block mt-1">0</span>
+          </div>
+          <span class="text-[9px] text-slate-500 block mt-2">Permanent records</span>
+        </div>
+      </div>
+
+      <!-- Trend and Aggregations Split -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- Availability Daily Trend -->
+        <div class="glass-panel rounded-2xl p-6 lg:col-span-2 relative overflow-hidden">
+          <div class="flex items-center justify-between mb-5">
+            <div>
+              <h3 class="text-base font-bold font-outfit text-slate-100 tracking-wide"><i class="fa-solid fa-chart-area mr-2 text-indigo-400"></i> Availability Trend</h3>
+              <p class="text-[10px] text-slate-500 mt-0.5">Daily platform availability percentage over the last 30 days</p>
+            </div>
+            <span class="text-[10px] font-mono text-indigo-400 bg-indigo-500/10 border border-indigo-500/15 py-1 px-2.5 rounded-lg">% availability scale</span>
+          </div>
+          <div class="h-[250px] w-full relative">
+            <canvas id="availabilityTrendChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Uptime Distribution -->
+        <div class="glass-panel rounded-2xl p-6 lg:col-span-1 relative overflow-hidden flex flex-col justify-between">
+          <div>
+            <h3 class="text-base font-bold font-outfit text-slate-100 tracking-wide"><i class="fa-solid fa-chart-pie mr-2 text-pink-400"></i> Uptime Distribution</h3>
+            <p class="text-[10px] text-slate-500 mt-0.5 font-outfit">Breakdown of services by reliability grade</p>
+          </div>
+          <div class="h-[180px] w-full relative my-4 flex items-center justify-center">
+            <canvas id="uptimeDistributionChart"></canvas>
+          </div>
+          <div class="pt-3 border-t border-white/5 text-[9px] text-slate-500 flex justify-between font-mono">
+            <span>Score-based grouping</span>
+            <span>Count unit</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Reliability Rankings Row -->
+      <div class="glass-panel rounded-2xl p-6 mt-8">
+        <div class="flex items-center justify-between mb-5">
+          <h3 class="text-base font-bold font-outfit text-slate-100 tracking-wide"><i class="fa-solid fa-ranking-star mr-2 text-pink-400"></i> Reliability Leaderboard</h3>
+          <span class="text-[10px] font-mono text-slate-500">Service availability and active trend</span>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="reliability-rankings-panel">
+          <p class="text-slate-400 text-xs col-span-full">Loading rankings...</p>
+        </div>
+      </div>
     </div>
 
     <!-- Charts & Analytics Section -->
@@ -397,6 +490,9 @@
 
   <script>
     let latencyChartInstance = null;
+    let availabilityChartInstance = null;
+    let distributionChartInstance = null;
+    let currentUptimeRangeDays = 30; // Default range
     let allLogs = [];
     let currentFilter = 'ALL';
     let cachedStatusMap = {};
@@ -454,7 +550,7 @@
       if (refreshIcon) refreshIcon.classList.add('fa-spin');
       
       try {
-        await Promise.all([loadStatus(), loadLogs(), loadGitHubActionsStatus()]);
+        await Promise.all([loadStatus(), loadLogs(), loadGitHubActionsStatus(), loadUptimeDashboard()]);
         addToTerminal("System status and database logs synchronized successfully.", "success");
       } catch (err) {
         console.error('Refresh failed:', err);
@@ -680,16 +776,39 @@
       const lastCheckTime = formatIST(server.last_checked);
       const nameId = (server.name || 'service').replace(/\s+/g, '-');
 
+      // Compute uptime badge style
+      let uptimeVal = 100.0;
+      if (currentUptimeRangeDays === 1) uptimeVal = server.uptime_24h !== undefined ? server.uptime_24h : 100.0;
+      else if (currentUptimeRangeDays === 7) uptimeVal = server.uptime_7d !== undefined ? server.uptime_7d : 100.0;
+      else if (currentUptimeRangeDays === 30) uptimeVal = server.uptime_30d !== undefined ? server.uptime_30d : 100.0;
+      else uptimeVal = server.uptime_all_time !== undefined ? server.uptime_all_time : 100.0;
+
+      let uptimeBadgeClass = '';
+      if (uptimeVal >= 99.99) {
+        uptimeBadgeClass = 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
+      } else if (uptimeVal >= 99.0) {
+        uptimeBadgeClass = 'bg-green-500/10 text-green-400 border-green-500/20';
+      } else if (uptimeVal >= 95.0) {
+        uptimeBadgeClass = 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20';
+      } else {
+        uptimeBadgeClass = 'bg-red-500/10 text-red-400 border-red-500/20';
+      }
+
       // 1. Create and Append Server Card
       const cardHtml = `
         <div onclick="openModal('${server.name}')" class="glass-card rounded-2xl p-6 relative overflow-hidden flex flex-col justify-between h-48 border-t-2 ${borderGlowClass} cursor-pointer">
           <div class="flex items-start justify-between gap-1">
             <div class="overflow-hidden">
               <h3 class="font-outfit font-bold text-base text-slate-100 truncate">${server.name || 'Unnamed'}</h3>
-              <p class="text-[10px] text-slate-500 truncate max-w-[180px]" title="${server.url || 'Scraper Service'}">${server.url || 'Local Scraping Engine'}</p>
+              <p class="text-[10px] text-slate-500 truncate max-w-[140px]" title="${server.url || 'Scraper Service'}">${server.url || 'Local Scraping Engine'}</p>
             </div>
-            <div class="flex items-center gap-1 px-2 py-0.5 rounded-full border text-[9px] font-bold tracking-wider uppercase shrink-0 ${statusBadgeClass}">
-              ${statusIcon} ${server.status || 'Pending'}
+            <div class="flex items-center gap-1 shrink-0">
+              <span class="px-1.5 py-0.5 rounded-full border text-[9px] font-bold tracking-wider uppercase ${uptimeBadgeClass}">
+                ${uptimeVal.toFixed(2)}%
+              </span>
+              <div class="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full border text-[9px] font-bold tracking-wider uppercase shrink-0 ${statusBadgeClass}">
+                ${statusIcon} ${server.status || 'Pending'}
+              </div>
             </div>
           </div>
           
@@ -1218,7 +1337,283 @@
         console.error("Error in loadGitHubActionsStatus:", err);
       }
     }
+    async function loadUptimeDashboard() {
+      try {
+        // 1. Fetch overview stats
+        const overviewRes = await fetch('/api/uptime/overview');
+        if (overviewRes.ok) {
+          const data = await overviewRes.json();
+          document.getElementById('overview-platform-uptime').textContent = data.overall_platform_uptime.toFixed(2) + '%';
+          document.getElementById('overview-best-service').textContent = data.best_service;
+          document.getElementById('overview-worst-service').textContent = data.worst_service;
+          document.getElementById('overview-total-checks').textContent = data.total_checks.toLocaleString();
+          
+          const worstStatus = document.getElementById('overview-worst-status');
+          if (data.overall_platform_uptime >= 99.0) {
+            worstStatus.className = "text-[9px] text-emerald-400 font-semibold block mt-2";
+            worstStatus.innerHTML = `<i class="fa-solid fa-circle-check mr-1"></i> Platform stable`;
+          } else {
+            worstStatus.className = "text-[9px] text-rose-400 font-semibold block mt-2";
+            worstStatus.innerHTML = `<i class="fa-solid fa-triangle-exclamation mr-1"></i> Action recommended`;
+          }
+        }
 
+        // 2. Render Reliability Rankings
+        renderReliabilityRankings();
+
+        // 3. Fetch and Render Uptime Distribution Chart
+        renderUptimeDistributionChart();
+
+        // 4. Fetch and Render Availability Trend Chart
+        const historyRes = await fetch('/api/uptime/history');
+        if (historyRes.ok) {
+          const historyData = await historyRes.json();
+          renderAvailabilityTrendChart(historyData);
+        }
+      } catch (err) {
+        console.error("Error in loadUptimeDashboard:", err);
+      }
+    }
+
+    function changeUptimeRange(days) {
+      currentUptimeRangeDays = days;
+      
+      const ranges = [1, 7, 30];
+      ranges.forEach(r => {
+        const btnId = `uptime-range-${r}d` + (r === 1 ? 'h' : '');
+        const btn = document.getElementById(btnId);
+        if (btn) {
+          if (r === days) {
+            btn.className = "bg-indigo-600/30 text-indigo-300 border border-indigo-500/20 text-[10px] font-mono py-1 px-2.5 rounded-lg";
+          } else {
+            btn.className = "bg-slate-800 text-slate-400 border border-white/5 text-[10px] font-mono py-1 px-2.5 rounded-lg hover:bg-slate-700 hover:text-slate-300";
+          }
+        }
+      });
+      
+      // Re-render components with the selected range
+      renderFilteredDashboard();
+      renderReliabilityRankings();
+      renderUptimeDistributionChart();
+    }
+
+    function renderReliabilityRankings() {
+      const panel = document.getElementById('reliability-rankings-panel');
+      if (!panel) return;
+      
+      panel.innerHTML = '';
+      
+      const services = Object.values(cachedStatusMap);
+      if (services.length === 0) {
+        panel.innerHTML = `<p class="text-slate-500 text-xs col-span-full">No service data available.</p>`;
+        return;
+      }
+      
+      services.sort((a, b) => {
+        let valA = 100.0, valB = 100.0;
+        if (currentUptimeRangeDays === 1) {
+          valA = a.uptime_24h !== undefined ? a.uptime_24h : 100.0;
+          valB = b.uptime_24h !== undefined ? b.uptime_24h : 100.0;
+        } else if (currentUptimeRangeDays === 7) {
+          valA = a.uptime_7d !== undefined ? a.uptime_7d : 100.0;
+          valB = b.uptime_7d !== undefined ? b.uptime_7d : 100.0;
+        } else if (currentUptimeRangeDays === 30) {
+          valA = a.uptime_30d !== undefined ? a.uptime_30d : 100.0;
+          valB = b.uptime_30d !== undefined ? b.uptime_30d : 100.0;
+        } else {
+          valA = a.uptime_all_time !== undefined ? a.uptime_all_time : 100.0;
+          valB = b.uptime_all_time !== undefined ? b.uptime_all_time : 100.0;
+        }
+        return valB - valA;
+      });
+      
+      services.forEach((s, idx) => {
+        let val = 100.0;
+        if (currentUptimeRangeDays === 1) val = s.uptime_24h !== undefined ? s.uptime_24h : 100.0;
+        else if (currentUptimeRangeDays === 7) val = s.uptime_7d !== undefined ? s.uptime_7d : 100.0;
+        else if (currentUptimeRangeDays === 30) val = s.uptime_30d !== undefined ? s.uptime_30d : 100.0;
+        else val = s.uptime_all_time !== undefined ? s.uptime_all_time : 100.0;
+        
+        let colorClass = 'text-emerald-400';
+        let ratingText = s.reliability_rating || 'Excellent';
+        if (ratingText === 'Excellent') colorClass = 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20';
+        else if (ratingText === 'Stable') colorClass = 'text-green-400 bg-green-500/10 border-green-500/20';
+        else if (ratingText === 'Warning') colorClass = 'text-yellow-400 bg-yellow-500/10 border-yellow-500/20';
+        else colorClass = 'text-rose-400 bg-rose-500/10 border-rose-500/20';
+        
+        const trend = s.trend_indicator || '→';
+        let trendColor = 'text-slate-400';
+        if (trend === '↑') trendColor = 'text-emerald-400';
+        else if (trend === '↓') trendColor = 'text-rose-400';
+        
+        const html = `
+          <div class="flex items-center justify-between bg-white/5 p-3 rounded-xl border border-white/5">
+            <div class="flex items-center gap-2">
+              <span class="font-mono text-xs text-slate-500 font-bold">#${idx + 1}</span>
+              <span class="text-xs font-semibold font-outfit text-slate-200">${s.name}</span>
+            </div>
+            <div class="flex items-center gap-3 text-[10px] font-mono">
+              <span class="font-bold text-slate-200">${val.toFixed(2)}%</span>
+              <span class="border px-2 py-0.5 rounded ${colorClass}">${ratingText}</span>
+              <span class="${trendColor} font-bold text-xs">${trend}</span>
+            </div>
+          </div>
+        `;
+        panel.insertAdjacentHTML('beforeend', html);
+      });
+    }
+
+    function renderUptimeDistributionChart() {
+      try {
+        const services = Object.values(cachedStatusMap);
+        let excellent = 0, stable = 0, warning = 0, critical = 0;
+        
+        services.forEach(s => {
+          let val = 100.0;
+          if (currentUptimeRangeDays === 1) val = s.uptime_24h !== undefined ? s.uptime_24h : 100.0;
+          else if (currentUptimeRangeDays === 7) val = s.uptime_7d !== undefined ? s.uptime_7d : 100.0;
+          else if (currentUptimeRangeDays === 30) val = s.uptime_30d !== undefined ? s.uptime_30d : 100.0;
+          else val = s.uptime_all_time !== undefined ? s.uptime_all_time : 100.0;
+          
+          if (val >= 100.0) excellent++;
+          else if (val >= 95.0) stable++;
+          else if (val >= 90.0) warning++;
+          else critical++;
+        });
+        
+        const canvas = document.getElementById('uptimeDistributionChart');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        
+        if (distributionChartInstance) {
+          distributionChartInstance.destroy();
+        }
+        
+        if (typeof Chart === 'undefined') return;
+        
+        distributionChartInstance = new Chart(ctx, {
+          type: 'doughnut',
+          data: {
+            labels: ['Excellent (100%)', 'Stable (95-99%)', 'Warning (90-94%)', 'Critical (<90%)'],
+            datasets: [{
+              data: [excellent, stable, warning, critical],
+              backgroundColor: ['#10b981', '#6366f1', '#f59e0b', '#f43f5e'],
+              borderColor: '#0a0a0c',
+              borderWidth: 2
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '70%',
+            plugins: {
+              legend: {
+                position: 'bottom',
+                labels: {
+                  color: '#94a3b8',
+                  boxWidth: 8,
+                  boxHeight: 8,
+                  padding: 8,
+                  font: { family: 'Outfit', size: 9 }
+                }
+              },
+              tooltip: {
+                backgroundColor: 'rgba(10, 10, 12, 0.95)',
+                titleColor: '#e2e8f0',
+                bodyColor: '#e2e8f0',
+                borderWidth: 1,
+                borderColor: 'rgba(255,255,255,0.08)',
+                padding: 10,
+                callbacks: {
+                  label: function(context) {
+                    return ` Services: ${context.raw}`;
+                  }
+                }
+              }
+            }
+          }
+        });
+      } catch (err) {
+        console.error("Error in renderUptimeDistributionChart:", err);
+      }
+    }
+
+    function renderAvailabilityTrendChart(historyData) {
+      try {
+        const dates = historyData.map(d => d.date);
+        const uptimes = historyData.map(d => d.uptime);
+        
+        const canvas = document.getElementById('availabilityTrendChart');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        
+        if (availabilityChartInstance) {
+          availabilityChartInstance.destroy();
+        }
+        
+        if (typeof Chart === 'undefined') {
+          console.warn("Chart.js not loaded.");
+          return;
+        }
+        
+        availabilityChartInstance = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: dates,
+            datasets: [{
+              label: 'Platform Availability',
+              data: uptimes,
+              borderColor: '#6366f1',
+              backgroundColor: 'rgba(99, 102, 241, 0.08)',
+              borderWidth: 2,
+              tension: 0.35,
+              pointRadius: 2,
+              pointBackgroundColor: '#6366f1',
+              pointHoverRadius: 4,
+              fill: true
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                backgroundColor: 'rgba(10, 10, 12, 0.95)',
+                titleColor: '#e2e8f0',
+                bodyColor: '#e2e8f0',
+                borderWidth: 1,
+                borderColor: 'rgba(255,255,255,0.08)',
+                padding: 10,
+                callbacks: {
+                  label: function(context) {
+                    return ` Availability: ${context.raw.toFixed(2)}%`;
+                  }
+                }
+              }
+            },
+            scales: {
+              x: {
+                grid: { color: 'rgba(255,255,255,0.02)' },
+                ticks: { color: '#64748b', font: { family: 'Space Mono', size: 8 } }
+              },
+              y: {
+                min: 90.0,
+                max: 100.0,
+                grid: { color: 'rgba(255,255,255,0.04)' },
+                ticks: { 
+                  color: '#64748b', 
+                  font: { family: 'Space Mono', size: 8 },
+                  callback: value => value + '%'
+                }
+              }
+            }
+          }
+        });
+      } catch (err) {
+        console.error("Error in renderAvailabilityTrendChart:", err);
+      }
+    }
     // Auto-refresh every 30 seconds
     setInterval(refreshData, 30000);
     

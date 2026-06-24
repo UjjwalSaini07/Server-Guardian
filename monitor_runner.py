@@ -77,6 +77,13 @@ def run_all_jobs():
         
     logging.info("[Runner] All jobs completed.")
     
+    # Run Uptime and Reliability Aggregator
+    try:
+        from services.uptime_aggregator import aggregate_metrics
+        aggregate_metrics(mongo_client)
+    except Exception as e:
+        logging.error(f"[Runner] Failed to run uptime aggregation: {e}")
+    
     # 2. Update status to SUCCESS
     now_end = datetime.now(timezone.utc)
     status_col.update_one(

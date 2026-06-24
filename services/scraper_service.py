@@ -24,11 +24,12 @@ def run_scraper(service, mongo_client):
         }
         
         history_data = {
+            "service_id": service.get("service_id", "stock_scraper"),
+            "service_name": name,
             "timestamp": now,
-            "service": name,
-            "status": "SKIPPED",
-            "latency": None,
-            "error": "Outside active schedule"
+            "status": "success",
+            "latency_ms": 0,
+            "failure_reason": "Skipped (Outside active schedule)"
         }
         
         # Save to database
@@ -74,11 +75,12 @@ def run_scraper(service, mongo_client):
         }
         
         history_data = {
+            "service_id": service.get("service_id", "stock_scraper"),
+            "service_name": name,
             "timestamp": now,
-            "service": name,
-            "status": status,
-            "latency": None,
-            "error": None
+            "status": "success" if status == "SUCCESS" else "failure",
+            "latency_ms": 0,
+            "failure_reason": None if status == "SUCCESS" else "Scraper skipped or did not complete"
         }
         
         db["latest_status"].update_one({"name": name}, {"$set": status_data}, upsert=True)
@@ -99,11 +101,12 @@ def run_scraper(service, mongo_client):
         }
         
         history_data = {
+            "service_id": service.get("service_id", "stock_scraper"),
+            "service_name": name,
             "timestamp": now,
-            "service": name,
-            "status": "ERROR",
-            "latency": None,
-            "error": str(e)
+            "status": "failure",
+            "latency_ms": 0,
+            "failure_reason": str(e)
         }
         
         try:

@@ -15,6 +15,7 @@ VISIONRETAIL_IQ_URL = os.getenv("VISIONRETAIL_IQ_URL")
 # Unified list of monitored services and scraping workers
 SERVICES_CONFIG = [
     {
+        "service_id": "quillix_api",
         "name": "Quillix API",
         "type": "pinger",
         "url": QUILLIX_API_URL,
@@ -28,6 +29,7 @@ SERVICES_CONFIG = [
         "parse_analytics": False
     },
     {
+        "service_id": "affiliate_health",
         "name": "Affiliate MVP Health",
         "type": "pinger",
         "url": AFFILIATE_HEALTH_URL,
@@ -41,6 +43,7 @@ SERVICES_CONFIG = [
         "parse_analytics": False
     },
     {
+        "service_id": "stock_sentinel",
         "name": "Stock Sentinel Server",
         "type": "pinger",
         "url": STOCK_SENTINEL_URL,
@@ -54,6 +57,7 @@ SERVICES_CONFIG = [
         "parse_analytics": True
     },
     {
+        "service_id": "visionretail_iq",
         "name": "VisionRetail IQ",
         "type": "pinger",
         "url": VISIONRETAIL_IQ_URL,
@@ -73,6 +77,7 @@ ENABLE_STOCK_SCRAPER = os.getenv("ENABLE_STOCK_SCRAPER", "true").lower() in ("1"
 
 if ENABLE_STOCK_SCRAPER:
     SERVICES_CONFIG.append({
+        "service_id": "stock_scraper",
         "name": "Stock Scraper",
         "type": "scraper",
         "enabled": True,

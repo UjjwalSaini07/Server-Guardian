@@ -67,11 +67,12 @@ def execute_ping(service, mongo_client):
         }
         
         history_data = {
+            "service_id": service.get("service_id", "quillix_api"),
+            "service_name": name,
             "timestamp": now,
-            "service": name,
-            "status": "SKIPPED",
-            "latency": 0,
-            "error": "Outside active schedule"
+            "status": "success",
+            "latency_ms": 0,
+            "failure_reason": "Skipped (Outside active schedule)"
         }
         
         try:
@@ -139,11 +140,12 @@ def execute_ping(service, mongo_client):
         }
         
         history_data = {
+            "service_id": service.get("service_id", "quillix_api"),
+            "service_name": name,
             "timestamp": now,
-            "service": name,
-            "status": status,
-            "latency": latency,
-            "error": None
+            "status": "success" if status_code == 200 else "failure",
+            "latency_ms": latency,
+            "failure_reason": None if status_code == 200 else f"HTTP status code {status_code}"
         }
         
         sa_db = mongo_client["ServerAutomation"]
@@ -186,11 +188,12 @@ def execute_ping(service, mongo_client):
         }
         
         history_data = {
+            "service_id": service.get("service_id", "quillix_api"),
+            "service_name": name,
             "timestamp": now,
-            "service": name,
-            "status": "ERROR",
-            "latency": latency,
-            "error": str(e)
+            "status": "failure",
+            "latency_ms": latency,
+            "failure_reason": str(e)
         }
         
         try:

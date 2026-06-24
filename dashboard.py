@@ -1,6 +1,6 @@
 import os
 import threading
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
@@ -26,11 +26,17 @@ def get_status():
         db = mongo_client["ServerAutomation"]
         status_docs = list(db["latest_status"].find())
         status_map = {doc["name"]: doc for doc in status_docs}
+        
+        # Fetch precomputed uptime metrics
+        uptime_docs = list(db["uptime_metrics"].find())
+        uptime_map = {doc["service_id"]: doc for doc in uptime_docs}
     except Exception as e:
         status_map = {}
+        uptime_map = {}
 
     for s in SERVICES_CONFIG:
         name = s["name"]
+        service_id = s.get("service_id")
         cached = status_map.get(name, {
             "status": "PENDING",
             "last_checked": None,
@@ -38,6 +44,9 @@ def get_status():
             "db_ok": True,
             "redis_ok": True
         })
+        
+        # Merge precomputed uptime data
+        uptime_data = uptime_map.get(service_id, {})
         
         # Ensure timestamp is stringified
         last_checked_val = cached.get("last_checked")
@@ -47,6 +56,7 @@ def get_status():
             last_checked_str = last_checked_val
 
         result[name] = {
+            "service_id": service_id,
             "name": name,
             "type": s["type"],
             "url": s.get("url"),
@@ -61,7 +71,18 @@ def get_status():
             "redis_ok": cached.get("redis_ok", True),
             "uptime_seconds": cached.get("uptime_seconds"),
             "error": cached.get("error"),
-            "details": cached.get("details", {})
+            "details": cached.get("details", {}),
+            
+            # Merge precomputed uptime metrics
+            "uptime_24h": uptime_data.get("uptime_24h", 100.0),
+            "uptime_7d": uptime_data.get("uptime_7d", 100.0),
+            "uptime_30d": uptime_data.get("uptime_30d", 100.0),
+            "uptime_all_time": uptime_data.get("uptime_all_time", 100.0),
+            "successful_checks": uptime_data.get("successful_checks", 0),
+            "failed_checks": uptime_data.get("failed_checks", 0),
+            "reliability_rating": uptime_data.get("reliability_rating", "Excellent"),
+            "trend_indicator": uptime_data.get("trend_indicator", "→"),
+            "consecutive_outages": uptime_data.get("consecutive_outages", False)
         }
     return result
 
@@ -78,7 +99,7 @@ def get_logs():
         
         # Get last 50 scraper history logs
         hist_col = db["monitoring_history"]
-        scraper_records = list(hist_col.find({"service": "Stock Scraper"}).sort("timestamp", -1).limit(50))
+        scraper_records = list(hist_col.find({"service_id": "stock_scraper"}).sort("timestamp", -1).limit(50))
         
         # Merge them
         all_records = []
@@ -95,12 +116,12 @@ def get_logs():
             
         for r in scraper_records:
             all_records.append({
-                "service": r.get("service", "Unknown"),
+                "service": r.get("service_name", "Stock Scraper"),
                 "timestamp": r.get("timestamp"),
-                "status": r.get("status"),
+                "status": "SUCCESS" if r.get("status") == "success" else "ERROR",
                 "status_code": None,
-                "latency_ms": None,
-                "error": r.get("error"),
+                "latency_ms": r.get("latency_ms", 0),
+                "error": r.get("failure_reason"),
                 "analytics": None
             })
             
@@ -174,6 +195,100 @@ def get_github_actions_status():
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database query error: {str(e)}")
+
+@app.get("/api/services/{id}/uptime")
+def get_service_uptime(id: str):
+    """Return detailed uptime metrics, reliability scores, and trends for a specific service."""
+    service = next((s for s in SERVICES_CONFIG if s.get("service_id") == id), None)
+    if not service:
+        raise HTTPException(status_code=404, detail="Service not found")
+        
+    try:
+        db = mongo_client["ServerAutomation"]
+        col = db["uptime_metrics"]
+        metrics = col.find_one({"service_id": id})
+        
+        if not metrics:
+            return {
+                "service_name": service["name"],
+                "uptime_24h": 100.0,
+                "uptime_7d": 100.0,
+                "uptime_30d": 100.0,
+                "uptime_all_time": 100.0,
+                "successful_checks": 0,
+                "failed_checks": 0,
+                "reliability_rating": "Excellent",
+                "trend_indicator": "→",
+                "consecutive_outages": False
+            }
+            
+        return {
+            "service_name": metrics.get("service_name", service["name"]),
+            "uptime_24h": metrics.get("uptime_24h", 100.0),
+            "uptime_7d": metrics.get("uptime_7d", 100.0),
+            "uptime_30d": metrics.get("uptime_30d", 100.0),
+            "uptime_all_time": metrics.get("uptime_all_time", 100.0),
+            "successful_checks": metrics.get("successful_checks", 0),
+            "failed_checks": metrics.get("failed_checks", 0),
+            "reliability_rating": metrics.get("reliability_rating", "Excellent"),
+            "trend_indicator": metrics.get("trend_indicator", "→"),
+            "consecutive_outages": metrics.get("consecutive_outages", False)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database fetch error: {str(e)}")
+
+@app.get("/api/uptime/overview")
+def get_uptime_overview():
+    """Return overall platform reliability metrics."""
+    try:
+        from services.uptime_aggregator import get_platform_overview
+        return get_platform_overview(mongo_client)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Aggregator error: {str(e)}")
+
+@app.get("/api/uptime/history")
+def get_uptime_history():
+    """Return availability history grouped by day for the last 30 days."""
+    try:
+        db = mongo_client["ServerAutomation"]
+        col = db["monitoring_history"]
+        
+        # Query last 30 days
+        cutoff = datetime.now(timezone.utc) - timedelta(days=30)
+        records = list(col.find({"timestamp": {"$gte": cutoff}}))
+        
+        # Group by day and status
+        daily_stats = {}
+        for r in records:
+            dt = r.get("timestamp")
+            if not isinstance(dt, datetime):
+                continue
+            day_str = dt.strftime("%Y-%m-%d")
+            status = r.get("status")
+            
+            if day_str not in daily_stats:
+                daily_stats[day_str] = {"success": 0, "total": 0}
+                
+            daily_stats[day_str]["total"] += 1
+            if status == "success":
+                daily_stats[day_str]["success"] += 1
+                
+        # Format for charting
+        sorted_days = sorted(daily_stats.keys())
+        chart_data = []
+        for day in sorted_days:
+            success = daily_stats[day]["success"]
+            total = daily_stats[day]["total"]
+            pct = (success / total * 100.0) if total > 0 else 100.0
+            chart_data.append({
+                "date": day,
+                "uptime": round(pct, 2),
+                "total_checks": total
+            })
+            
+        return chart_data
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to query history: {str(e)}")
 
 @app.get("/", response_class=HTMLResponse)
 def serve_dashboard():
