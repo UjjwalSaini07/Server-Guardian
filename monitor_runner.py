@@ -83,6 +83,9 @@ def run_all_jobs():
         aggregate_metrics(mongo_client)
     except Exception as e:
         logging.error(f"[Runner] Failed to run uptime aggregation: {e}")
+
+    # Auto-dispatch weekly / monthly executive reports
+    _maybe_send_reports(mongo_client)
     
     # 2. Update status to SUCCESS
     now_end = datetime.now(timezone.utc)
@@ -100,6 +103,64 @@ def run_all_jobs():
     
     mongo_client.close()
     logging.info("[Runner] Database connection closed. Exit cleanly.")
+
+def _maybe_send_reports(mongo_client):
+    """
+    Dispatch weekly / monthly reports if the current run falls within
+    the configured dispatch window. Idempotent — safe to call on every run.
+    """
+    import os
+    REPORT_SEND_DAY = int(os.getenv("REPORT_SEND_DAY", "0"))    # 0=Monday
+    REPORT_SEND_HOUR = int(os.getenv("REPORT_SEND_HOUR_UTC", "6"))
+
+    now = datetime.now(timezone.utc)
+
+    # Only dispatch during the configured dispatch window
+    if now.hour != REPORT_SEND_HOUR:
+        return
+
+    try:
+        from services.report_service import (
+            generate_weekly_report, generate_monthly_report,
+            should_send_report, log_report_sent
+        )
+        from services.email_provider import (
+            send_alert_email,
+            format_weekly_report_template,
+            format_monthly_report_template,
+        )
+
+        # Weekly — send on the configured day of week
+        if now.weekday() == REPORT_SEND_DAY:
+            week_key = now.strftime("%Y-W%W")
+            if should_send_report("weekly", week_key, mongo_client):
+                logging.info("[Runner] Generating weekly report...")
+                report = generate_weekly_report(mongo_client)
+                html = format_weekly_report_template(report)
+                sent = send_alert_email(
+                    f"📊 ServerGuardian Weekly Report — {report.get('period', '')}",
+                    html
+                )
+                log_report_sent("weekly", week_key, sent, mongo_client)
+                logging.info(f"[Runner] Weekly report dispatched (sent={sent})")
+
+        # Monthly — send on the 1st of each month
+        if now.day == 1:
+            month_key = now.strftime("%Y-%m")
+            if should_send_report("monthly", month_key, mongo_client):
+                logging.info("[Runner] Generating monthly report...")
+                report = generate_monthly_report(mongo_client)
+                html = format_monthly_report_template(report)
+                sent = send_alert_email(
+                    f"📊 ServerGuardian Monthly Report — {report.get('period', '')}",
+                    html
+                )
+                log_report_sent("monthly", month_key, sent, mongo_client)
+                logging.info(f"[Runner] Monthly report dispatched (sent={sent})")
+
+    except Exception as e:
+        logging.error(f"[Runner] Report dispatch failed: {e}")
+
 
 if __name__ == "__main__":
     try:
