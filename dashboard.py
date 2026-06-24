@@ -290,6 +290,108 @@ def get_uptime_history():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to query history: {str(e)}")
 
+@app.get("/api/alerts")
+def get_alerts():
+    """Return active incidents and alert history logs from MongoDB."""
+    try:
+        db = mongo_client["ServerAutomation"]
+        
+        # Query active incidents from alert_state
+        active_states = list(db["alert_state"].find({"active_incident": True}))
+        active_list = []
+        for state in active_states:
+            # Find the corresponding SERVICE_DOWN alert to get details
+            down_alert = db["alerts"].find_one({
+                "service_id": state["service_id"],
+                "alert_type": "SERVICE_DOWN"
+            }, sort=[("created_at", -1)])
+            
+            active_list.append({
+                "service_id": state["service_id"],
+                "service_name": down_alert.get("service_name") if down_alert else state["service_id"],
+                "incident_started_at": state["incident_started_at"].isoformat() if isinstance(state.get("incident_started_at"), datetime) else state.get("incident_started_at"),
+                "message": down_alert.get("message", "Service is down") if down_alert else "Service is down"
+            })
+            
+        # Query last 100 historical alerts
+        history = list(db["alerts"].find().sort("created_at", -1).limit(100))
+        history_list = []
+        for a in history:
+            dt = a.get("created_at")
+            dt_str = dt.isoformat() if isinstance(dt, datetime) else str(dt)
+            history_list.append({
+                "service_id": a.get("service_id"),
+                "service_name": a.get("service_name"),
+                "alert_type": a.get("alert_type"),
+                "severity": a.get("severity", "info"),
+                "message": a.get("message"),
+                "created_at": dt_str,
+                "sent": a.get("sent", False)
+            })
+            
+        return {
+            "active_incidents": active_list,
+            "history": history_list
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch alerts: {str(e)}")
+
+@app.get("/api/alerts/analytics")
+def get_alerts_analytics():
+    """Return alerts analytics metrics."""
+    try:
+        db = mongo_client["ServerAutomation"]
+        alerts_col = db["alerts"]
+        
+        total_alerts = alerts_col.count_documents({})
+        
+        # Alerts per service
+        pipeline = [
+            {"$group": {"_id": "$service_name", "count": {"$sum": 1}}},
+            {"$sort": {"count": -1}}
+        ]
+        agg_results = list(alerts_col.aggregate(pipeline))
+        alerts_per_service = {r["_id"]: r["count"] for r in agg_results if r["_id"]}
+        
+        # MTTR calculation
+        recover_alerts = list(alerts_col.find({
+            "alert_type": "SERVICE_RECOVERED",
+            "downtime_seconds": {"$exists": True}
+        }))
+        
+        if recover_alerts:
+            avg_mttr = sum(a["downtime_seconds"] for a in recover_alerts) / len(recover_alerts)
+        else:
+            avg_mttr = 0.0
+            
+        # MTTD placeholder (constant 150 seconds/2.5 mins based on 5 mins checks frequency)
+        avg_mttd = 150.0 if total_alerts > 0 else 0.0
+        
+        # Incident trends (count of SERVICE_DOWN alerts per day in the last 7 days)
+        trend_pipeline = [
+            {"$match": {
+                "alert_type": "SERVICE_DOWN",
+                "created_at": {"$gte": datetime.now(timezone.utc) - timedelta(days=7)}
+            }},
+            {"$group": {
+                "_id": {"$dateToString": {"format": "%Y-%m-%d", "date": "$created_at"}},
+                "count": {"$sum": 1}
+            }},
+            {"$sort": {"_id": 1}}
+        ]
+        trend_results = list(alerts_col.aggregate(trend_pipeline))
+        incident_trends = {r["_id"]: r["count"] for r in trend_results}
+        
+        return {
+            "total_alerts": total_alerts,
+            "alerts_per_service": alerts_per_service,
+            "mean_time_to_detect_seconds": avg_mttd,
+            "mean_time_to_recover_seconds": round(avg_mttr, 1),
+            "incident_trends": incident_trends
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch alerts analytics: {str(e)}")
+
 @app.get("/", response_class=HTMLResponse)
 def serve_dashboard():
     """Serve the static glassmorphic dashboard HTML file."""

@@ -85,6 +85,14 @@ def run_scraper(service, mongo_client):
         
         db["latest_status"].update_one({"name": name}, {"$set": status_data}, upsert=True)
         db["monitoring_history"].insert_one(history_data)
+        
+        # Evaluate alert rules
+        try:
+            from services.alert_service import evaluate_scraper_result
+            evaluate_scraper_result(service, status_data, mongo_client)
+        except Exception as alert_err:
+            logging.error(f"[ScraperService] Alert evaluation failed for {name}: {alert_err}")
+            
         return status_data
         
     except Exception as e:
@@ -112,7 +120,11 @@ def run_scraper(service, mongo_client):
         try:
             db["latest_status"].update_one({"name": name}, {"$set": status_data}, upsert=True)
             db["monitoring_history"].insert_one(history_data)
+            
+            # Evaluate alert rules
+            from services.alert_service import evaluate_scraper_result
+            evaluate_scraper_result(service, status_data, mongo_client)
         except Exception as db_err:
-            logging.error(f"[ScraperService] Failed to write error scraper status to database: {db_err}")
+            logging.error(f"[ScraperService] Failed to write error scraper status to database or evaluate alerts: {db_err}")
             
         return status_data

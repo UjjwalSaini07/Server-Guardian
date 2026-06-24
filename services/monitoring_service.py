@@ -152,6 +152,13 @@ def execute_ping(service, mongo_client):
         sa_db["latest_status"].update_one({"name": name}, {"$set": status_data}, upsert=True)
         sa_db["monitoring_history"].insert_one(history_data)
         
+        # Evaluate alert rules
+        try:
+            from services.alert_service import evaluate_ping_result
+            evaluate_ping_result(service, status_data, mongo_client)
+        except Exception as alert_err:
+            logging.error(f"[MonitoringService] Alert evaluation failed for {name}: {alert_err}")
+        
         return status_data
         
     except requests.exceptions.RequestException as e:
@@ -200,7 +207,11 @@ def execute_ping(service, mongo_client):
             sa_db = mongo_client["ServerAutomation"]
             sa_db["latest_status"].update_one({"name": name}, {"$set": status_data}, upsert=True)
             sa_db["monitoring_history"].insert_one(history_data)
+            
+            # Evaluate alert rules for error condition
+            from services.alert_service import evaluate_ping_result
+            evaluate_ping_result(service, status_data, mongo_client)
         except Exception as db_err:
-            logging.error(f"[MonitoringService] Failed to write error status to DB: {db_err}")
+            logging.error(f"[MonitoringService] Failed to write error status or evaluate alerts in DB: {db_err}")
             
         return status_data

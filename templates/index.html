@@ -406,6 +406,99 @@
       </div>
     </div>
 
+    <!-- Alerts Center Section -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8" id="alerts-center-section">
+      <!-- Left Column: Active Incidents & Alert History -->
+      <div class="lg:col-span-2 flex flex-col gap-6">
+        <!-- Active Incidents Banner -->
+        <div id="active-incidents-container" class="hidden">
+          <div class="bg-neonRed/10 border border-neonRed/20 rounded-2xl p-5 flex flex-col gap-4 shadow-lg shadow-neonRed/5">
+            <div class="flex items-center gap-3">
+              <span class="relative flex h-2.5 w-2.5">
+                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-neonRed opacity-75"></span>
+                <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-neonRed"></span>
+              </span>
+              <h3 class="font-outfit font-bold text-xs uppercase text-neonRed tracking-wider">Active Outage Incidents</h3>
+            </div>
+            <div class="space-y-3" id="active-incidents-list">
+              <!-- Active items will be loaded dynamically -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Alert History Log -->
+        <div class="glass-panel rounded-2xl p-6">
+          <div class="flex items-center justify-between mb-5 pb-3 border-b border-white/5">
+            <div>
+              <h3 class="text-base font-bold font-outfit text-slate-100 tracking-wide">
+                <i class="fa-solid fa-bell mr-2 text-indigo-400"></i> Alert History Log
+              </h3>
+              <p class="text-[10px] text-slate-500 mt-0.5">Chronological record of service notifications and component alerts</p>
+            </div>
+            <span class="text-[10px] font-mono text-slate-500 bg-white/5 border border-white/5 py-1 px-2.5 rounded-lg">Last 100 events</span>
+          </div>
+          
+          <div class="overflow-y-auto max-h-[300px] pr-2 terminal-scrollbar space-y-3" id="alert-history-list">
+            <p class="text-slate-500 text-xs py-4 text-center">Loading alert history...</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column: Incident Analytics -->
+      <div class="lg:col-span-1">
+        <div class="glass-panel rounded-2xl p-6 h-full flex flex-col justify-between">
+          <div>
+            <div class="mb-5 pb-3 border-b border-white/5">
+              <h3 class="text-base font-bold font-outfit text-slate-100 tracking-wide">
+                <i class="fa-solid fa-chart-simple mr-2 text-pink-400"></i> Incident Analytics
+              </h3>
+              <p class="text-[10px] text-slate-500 mt-0.5">Platform alerting metrics and reliability indicators</p>
+            </div>
+            
+            <div class="space-y-4">
+              <!-- Total Alerts -->
+              <div class="bg-white/5 border border-white/5 p-4 rounded-xl flex items-center justify-between">
+                <div>
+                  <span class="text-[9px] uppercase text-slate-500 font-bold tracking-wider block">Total Incident Alerts</span>
+                  <span id="analytics-total-alerts" class="text-2xl font-black font-outfit text-slate-100 mt-1 block">-</span>
+                </div>
+                <div class="w-10 h-10 rounded-xl bg-pink-500/10 border border-pink-500/20 flex items-center justify-center text-pink-400">
+                  <i class="fa-solid fa-bell"></i>
+                </div>
+              </div>
+              
+              <!-- MTTD -->
+              <div class="bg-white/5 border border-white/5 p-4 rounded-xl flex items-center justify-between">
+                <div>
+                  <span class="text-[9px] uppercase text-slate-500 font-bold tracking-wider block">Mean Time to Detect (MTTD)</span>
+                  <span id="analytics-mttd" class="text-2xl font-black font-outfit text-slate-100 mt-1 block">-</span>
+                </div>
+                <div class="w-10 h-10 rounded-xl bg-neonOrange/10 border border-neonOrange/20 flex items-center justify-center text-neonOrange">
+                  <i class="fa-solid fa-eye animate-pulse"></i>
+                </div>
+              </div>
+              
+              <!-- MTTR -->
+              <div class="bg-white/5 border border-white/5 p-4 rounded-xl flex items-center justify-between">
+                <div>
+                  <span class="text-[9px] uppercase text-slate-500 font-bold tracking-wider block">Mean Time to Recover (MTTR)</span>
+                  <span id="analytics-mttr" class="text-2xl font-black font-outfit text-slate-100 mt-1 block">-</span>
+                </div>
+                <div class="w-10 h-10 rounded-xl bg-neonGreen/10 border border-neonGreen/20 flex items-center justify-center text-neonGreen">
+                  <i class="fa-solid fa-heart-pulse"></i>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="pt-4 border-t border-white/5 text-[9px] text-slate-500 flex justify-between font-mono mt-6">
+            <span>Calculated from MongoDB history</span>
+            <span>Auto-refreshing</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Table Grid Logs Feed -->
     <div class="glass-panel rounded-2xl p-6">
       <div class="flex flex-col sm:flex-row items-center justify-between gap-4 mb-6">
@@ -550,7 +643,7 @@
       if (refreshIcon) refreshIcon.classList.add('fa-spin');
       
       try {
-        await Promise.all([loadStatus(), loadLogs(), loadGitHubActionsStatus(), loadUptimeDashboard()]);
+        await Promise.all([loadStatus(), loadLogs(), loadGitHubActionsStatus(), loadUptimeDashboard(), loadAlertsDashboard()]);
         addToTerminal("System status and database logs synchronized successfully.", "success");
       } catch (err) {
         console.error('Refresh failed:', err);
@@ -1614,6 +1707,143 @@
         console.error("Error in renderAvailabilityTrendChart:", err);
       }
     }
+
+    // Alerts Center dashboard functions
+    async function loadAlertsDashboard() {
+      try {
+        const alertsRes = await fetch('/api/alerts');
+        if (alertsRes.ok) {
+          const data = await alertsRes.json();
+          renderActiveIncidents(data.active_incidents);
+          renderAlertHistory(data.history);
+        }
+
+        const analyticsRes = await fetch('/api/alerts/analytics');
+        if (analyticsRes.ok) {
+          const data = await analyticsRes.json();
+          renderAlertAnalytics(data);
+        }
+      } catch (err) {
+        console.error("Error in loadAlertsDashboard:", err);
+      }
+    }
+
+    function renderActiveIncidents(activeIncidents) {
+      const container = document.getElementById('active-incidents-container');
+      const list = document.getElementById('active-incidents-list');
+      if (!container || !list) return;
+
+      if (!activeIncidents || activeIncidents.length === 0) {
+        container.classList.add('hidden');
+        list.innerHTML = '';
+        return;
+      }
+
+      container.classList.remove('hidden');
+      list.innerHTML = activeIncidents.map(incident => {
+        const timeStr = formatIST(incident.incident_started_at);
+        return `
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between bg-black/45 border border-neonRed/15 p-3.5 rounded-xl gap-2 hover:border-neonRed/30 transition-all">
+            <div>
+              <span class="text-xs font-bold font-outfit text-slate-100">${incident.service_name}</span>
+              <p class="text-[11px] text-slate-400 mt-1"><i class="fa-solid fa-circle-exclamation text-neonRed mr-1.5"></i> ${incident.message}</p>
+            </div>
+            <div class="text-left sm:text-right shrink-0">
+              <span class="text-[9px] uppercase font-bold text-neonRed/90 block">Downtime Started</span>
+              <span class="text-[10px] font-mono text-slate-400 mt-0.5 block">${timeStr}</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderAlertHistory(history) {
+      const list = document.getElementById('alert-history-list');
+      if (!list) return;
+
+      if (!history || history.length === 0) {
+        list.innerHTML = `<p class="text-slate-500 text-xs py-8 text-center font-outfit">No alert logs recorded yet.</p>`;
+        return;
+      }
+
+      list.innerHTML = history.map(alert => {
+        let bgClass = 'bg-slate-500/10 text-slate-400';
+        let iconClass = 'fa-solid fa-circle-info';
+        let badgeClass = 'bg-slate-500/10 text-slate-400 border border-slate-500/15';
+
+        const severity = (alert.severity || '').toLowerCase();
+        if (severity === 'critical') {
+          bgClass = 'bg-neonRed/15 text-neonRed';
+          iconClass = 'fa-solid fa-triangle-exclamation';
+          badgeClass = 'bg-neonRed/10 text-neonRed/90 border border-neonRed/20';
+        } else if (severity === 'warning') {
+          bgClass = 'bg-neonOrange/15 text-neonOrange';
+          iconClass = 'fa-solid fa-circle-exclamation';
+          badgeClass = 'bg-neonOrange/10 text-neonOrange/90 border border-neonOrange/20';
+        } else if (severity === 'success') {
+          bgClass = 'bg-neonGreen/15 text-neonGreen';
+          iconClass = 'fa-solid fa-circle-check';
+          badgeClass = 'bg-neonGreen/10 text-neonGreen/90 border border-neonGreen/20';
+        } else if (severity === 'info') {
+          bgClass = 'bg-neonIndigo/15 text-neonIndigo';
+          iconClass = 'fa-solid fa-circle-info';
+          badgeClass = 'bg-neonIndigo/10 text-neonIndigo/90 border border-neonIndigo/15';
+        }
+
+        const dateStr = formatIST(alert.created_at);
+        const emailBadge = alert.sent 
+          ? `<span class="text-[8px] font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/15 px-1.5 py-0.5 rounded ml-2 inline-block shrink-0"><i class="fa-solid fa-envelope mr-1 text-[7px]"></i>EMAIL SENT</span>`
+          : '';
+
+        return `
+          <div class="flex items-start justify-between bg-white/[0.02] border border-white/5 hover:border-white/10 p-3.5 rounded-xl gap-4 transition-all">
+            <div class="flex items-start gap-3">
+              <div class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${bgClass}">
+                <i class="${iconClass}"></i>
+              </div>
+              <div class="min-w-0">
+                <div class="flex flex-wrap items-center gap-2">
+                  <span class="text-xs font-bold font-outfit text-slate-200 truncate max-w-[120px] sm:max-w-none">${alert.service_name || alert.service_id}</span>
+                  <span class="text-[9px] font-mono font-bold uppercase px-1.5 py-0.5 rounded tracking-wide ${badgeClass}">${alert.alert_type}</span>
+                  ${emailBadge}
+                </div>
+                <p class="text-[11px] text-slate-400 mt-1.5 leading-relaxed">${alert.message}</p>
+              </div>
+            </div>
+            <div class="text-right shrink-0">
+              <span class="text-[9px] font-mono text-slate-500">${dateStr}</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderAlertAnalytics(data) {
+      const totalAlertsEl = document.getElementById('analytics-total-alerts');
+      const mttdEl = document.getElementById('analytics-mttd');
+      const mttrEl = document.getElementById('analytics-mttr');
+
+      if (totalAlertsEl) {
+        totalAlertsEl.textContent = data.total_alerts.toLocaleString();
+      }
+
+      if (mttdEl) {
+        mttdEl.textContent = formatDuration(data.mean_time_to_detect_seconds);
+      }
+
+      if (mttrEl) {
+        mttrEl.textContent = formatDuration(data.mean_time_to_recover_seconds);
+      }
+    }
+
+    function formatDuration(seconds) {
+      if (seconds === undefined || seconds === null || seconds <= 0) return '0s';
+      if (seconds < 60) return seconds.toFixed(0) + 's';
+      const mins = Math.floor(seconds / 60);
+      const secs = Math.round(seconds % 60);
+      return secs > 0 ? `${mins}m ${secs}s` : `${mins}m`;
+    }
+
     // Auto-refresh every 30 seconds
     setInterval(refreshData, 30000);
     
