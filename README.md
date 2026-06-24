@@ -13,6 +13,7 @@
 
 **ServerGuardian helps engineering teams monitor critical services, detect failures instantly, reduce downtime, and maintain operational excellence through a unified observability and incident response platform.**
 
+<img width="1536" height="1024" alt="image" src="https://github.com/user-attachments/assets/6ca22ebe-ac39-4a69-b4df-69bbc64e7f4a" />
 
 ## 📖 Table of Contents
 
