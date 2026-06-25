@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from services.email_provider import (
     send_alert_email,
     format_service_down_template,
@@ -7,6 +7,15 @@ from services.email_provider import (
     format_high_latency_template
 )
 from services import incident_service
+
+IST_OFFSET = timedelta(hours=5, minutes=30)
+
+def _fmt_ist(dt: datetime) -> str:
+    """Convert a UTC datetime to IST and format as 12-hour AM/PM string."""
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    ist = dt + IST_OFFSET
+    return ist.strftime("%d %b %Y, %I:%M:%S %p IST")
 
 def format_duration(seconds):
     """Format duration in seconds to a human-readable string."""
@@ -69,12 +78,13 @@ def process_alert(service_id, service_name, alert_type, severity, message, detai
                     "service_id": service_id,
                     "status": "success"
                 }, sort=[("timestamp", -1)])
-                last_ok_str = last_ok["timestamp"].strftime("%Y-%m-%d %H:%M:%S UTC") if last_ok else "No successful check recorded"
+                last_ok_ts = last_ok["timestamp"] if last_ok else None
+                last_ok_str = _fmt_ist(last_ok_ts) if last_ok_ts else "No successful check recorded"
                 
                 html_content = format_service_down_template(
                     service_name=service_name,
                     url=details.get("url", "-"),
-                    timestamp=now.strftime("%Y-%m-%d %H:%M:%S UTC"),
+                    timestamp=_fmt_ist(now),
                     reason=details.get("reason", "Unknown error"),
                     last_success_time=last_ok_str
                 )
@@ -122,7 +132,7 @@ def process_alert(service_id, service_name, alert_type, severity, message, detai
                 html_content = format_service_recovered_template(
                     service_name=service_name,
                     downtime_duration=downtime_str,
-                    recovery_time=now.strftime("%Y-%m-%d %H:%M:%S UTC"),
+                    recovery_time=_fmt_ist(now),
                     current_status=details.get("status", "SUCCESS")
                 )
             else:
@@ -156,7 +166,7 @@ def process_alert(service_id, service_name, alert_type, severity, message, detai
                     service_name=service_name,
                     current_latency=details.get("latency", 0),
                     threshold=details.get("threshold", 3000),
-                    timestamp=now.strftime("%Y-%m-%d %H:%M:%S UTC")
+                    timestamp=_fmt_ist(now)
                 )
             else:
                 logging.info(f"[NotificationService] High latency warning rate-limited for {service_name}.")
@@ -192,7 +202,7 @@ def process_alert(service_id, service_name, alert_type, severity, message, detai
                         <h2>🚨 Service Reliability Degraded: {service_name}</h2>
                         <p>The 30-day health score has dropped below the threshold of {details.get('threshold', 95)}%.</p>
                         <p>Current 30-day availability: <b>{details.get('uptime', 0.0):.2f}%</b></p>
-                        <p>Timestamp (UTC): {now.strftime("%Y-%m-%d %H:%M:%S UTC")}</p>
+                        <p>Timestamp (IST): {_fmt_ist(now)}</p>
                     </body>
                 </html>
                 """
@@ -230,7 +240,7 @@ def process_alert(service_id, service_name, alert_type, severity, message, detai
                         <h2>✅ Service Reliability Restored: {service_name}</h2>
                         <p>The 30-day health score has recovered and is above the threshold.</p>
                         <p>Current 30-day availability: <b>{details.get('uptime', 0.0):.2f}%</b></p>
-                        <p>Timestamp (UTC): {now.strftime("%Y-%m-%d %H:%M:%S UTC")}</p>
+                        <p>Timestamp (IST): {_fmt_ist(now)}</p>
                     </body>
                 </html>
                 """

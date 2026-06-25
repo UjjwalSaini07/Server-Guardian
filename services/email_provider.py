@@ -81,7 +81,7 @@ def format_service_down_template(service_name, url, timestamp, reason, last_succ
                         <td style="padding: 6px 0;"><a href="{url}" style="color: #6366f1; text-decoration: none;">{url}</a></td>
                     </tr>
                     <tr>
-                        <td style="padding: 6px 0; font-weight: bold;">Timestamp (UTC):</td>
+                        <td style="padding: 6px 0; font-weight: bold;">Timestamp (IST):</td>
                         <td style="padding: 6px 0;">{timestamp}</td>
                     </tr>
                     <tr>
@@ -120,7 +120,7 @@ def format_service_recovered_template(service_name, downtime_duration, recovery_
                         <td style="padding: 6px 0; color: #4cae4c; font-weight: bold;">{current_status}</td>
                     </tr>
                     <tr>
-                        <td style="padding: 6px 0; font-weight: bold;">Recovery Time (UTC):</td>
+                        <td style="padding: 6px 0; font-weight: bold;">Recovery Time (IST):</td>
                         <td style="padding: 6px 0;">{recovery_time}</td>
                     </tr>
                     <tr>
@@ -159,7 +159,7 @@ def format_high_latency_template(service_name, current_latency, threshold, times
                         <td style="padding: 6px 0;">{threshold:.0f} ms</td>
                     </tr>
                     <tr>
-                        <td style="padding: 6px 0; font-weight: bold;">Timestamp (UTC):</td>
+                        <td style="padding: 6px 0; font-weight: bold;">Timestamp (IST):</td>
                         <td style="padding: 6px 0;">{timestamp}</td>
                     </tr>
                 </table>
