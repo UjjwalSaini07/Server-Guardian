@@ -751,7 +751,7 @@ def parse_health_json(service_name: str, data: dict) -> dict:
             parsed["details"]["system"]      = data.get("system", {})
             parsed["details"]["environment"] = data.get("environment", {})
 
-        elif service_name == "VisionRetail IQ":
+        elif service_name == "Vision Retail IQ Server":
             parsed["uptime_seconds"] = data.get("uptime_seconds")
             parsed["db_ok"]          = data.get("db_ok", True)
             parsed["redis_ok"]       = data.get("redis_ok", True)

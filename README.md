@@ -278,7 +278,7 @@ All runtime data is stored in **MongoDB**. Two databases are used:
 ```json
 {
   "service_id": "quillix_api",
-  "service_name": "Quillix API",
+  "service_name": "NexGen Quillix Server",
   "status": "failed",
   "health_score": 0,
   "latency_ms": 1589,
@@ -294,7 +294,7 @@ All runtime data is stored in **MongoDB**. Two databases are used:
 {
   "incident_id": "INC-2026-0042",
   "service_id": "quillix_api",
-  "service_name": "Quillix API",
+  "service_name": "NexGen Quillix Server",
   "status": "open",
   "severity": "critical",
   "started_at": "2026-06-24T03:31:46+00:00",

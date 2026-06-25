@@ -1743,10 +1743,10 @@
             .reverse(); // old to new
 
           const colorMap = {
-            'Quillix API': '#6366f1', // Indigo
-            'Affiliate MVP Health': '#d946ef', // Pink
+            'NexGen Quillix Server': '#6366f1', // Indigo
+            'Affiliate MVP Server': '#d946ef', // Pink
             'Stock Sentinel Server': '#10b981', // Emerald
-            'VisionRetail IQ': '#f59e0b' // Amber
+            'Vision Retail IQ Server': '#f59e0b' // Amber
           };
           
           const color = colorMap[serviceName] || '#94a3b8';
@@ -1916,7 +1916,7 @@
         }
         
         // 2. If it's VisionRetail IQ, show live Camera streams and store lag
-        if (server.name === 'VisionRetail IQ' && details.cameras) {
+        if (server.name === 'Vision Retail IQ Server' && details.cameras) {
           hasAdvanced = true;
           
           let cameraRows = '';

@@ -16,7 +16,7 @@ VISIONRETAIL_IQ_URL = os.getenv("VISIONRETAIL_IQ_URL")
 SERVICES_CONFIG = [
     {
         "service_id": "quillix_api",
-        "name": "Quillix API",
+        "name": "NexGen Quillix Server",
         "type": "pinger",
         "url": QUILLIX_API_URL,
         "enabled": True,
@@ -30,7 +30,7 @@ SERVICES_CONFIG = [
     },
     {
         "service_id": "affiliate_health",
-        "name": "Affiliate MVP Health",
+        "name": "Affiliate MVP Server",
         "type": "pinger",
         "url": AFFILIATE_HEALTH_URL,
         "enabled": True,
@@ -62,7 +62,7 @@ SERVICES_CONFIG = [
     },
     {
         "service_id": "visionretail_iq",
-        "name": "VisionRetail IQ",
+        "name": "Vision Retail IQ Server",
         "type": "pinger",
         "url": VISIONRETAIL_IQ_URL,
         "enabled": True,
