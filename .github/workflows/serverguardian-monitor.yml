@@ -31,6 +31,7 @@ jobs:
           AFFILIATE_HEALTH_URL: ${{ secrets.AFFILIATE_HEALTH_URL }}
           STOCK_SENTINEL_URL: ${{ secrets.STOCK_SENTINEL_URL }}
           VISIONRETAIL_IQ_URL: ${{ secrets.VISIONRETAIL_IQ_URL }}
+          NEXORA_SERVER_URL: ${{ secrets.NEXORA_SERVER_URL }}
           EMAIL_HOST: ${{ secrets.EMAIL_HOST }}
           EMAIL_PORT: ${{ secrets.EMAIL_PORT }}
           EMAIL_USER: ${{ secrets.EMAIL_USER }}

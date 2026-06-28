@@ -761,6 +761,16 @@ def parse_health_json(service_name: str, data: dict) -> dict:
             parsed["details"]["cameras"]                   = data.get("cameras", [])
             parsed["details"]["stores"]                    = data.get("stores", [])
             parsed["details"]["status_overall"]            = data.get("status", "unknown")
+        elif service_name == "Nexora AI Server":
+            parsed["uptime_seconds"] = data.get("uptime_seconds")
+            parsed["db_ok"]          = data.get("mongo_connected", True)
+            parsed["redis_ok"]       = data.get("redis_connected", True)
+            parsed["details"]["contexts_loaded"]           = data.get("contexts_loaded", {})
+            parsed["details"]["total_actions_logged"]      = data.get("total_actions_logged")
+            parsed["details"]["total_replies_logged"]      = data.get("total_replies_logged")
+            parsed["details"]["active_suppression_keys"]  = data.get("active_suppression_keys")
+            parsed["details"]["environment"]               = data.get("environment")
+            parsed["details"]["memory_usage_mb"]           = data.get("memory_usage_mb")
 
     except Exception as exc:
         logger.error("[AnalyticsService] parse_health_json error for %s: %s", service_name, exc)

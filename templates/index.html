@@ -1746,7 +1746,8 @@
             'NexGen Quillix Server': '#6366f1', // Indigo
             'Affiliate MVP Server': '#d946ef', // Pink
             'Stock Sentinel Server': '#10b981', // Emerald
-            'Vision Retail IQ Server': '#f59e0b' // Amber
+            'Vision Retail IQ Server': '#f59e0b', // Amber
+            'Nexora AI Server': '#06b6d4' // Cyan
           };
           
           const color = colorMap[serviceName] || '#94a3b8';
@@ -1974,6 +1975,43 @@
               <div class="space-y-3.5">
                 ${storeRows}
               </div>
+            </div>
+          `;
+        }
+
+        // 3. If it's Nexora AI Server, show contexts loaded and database/redis status
+        if (server.name === 'Nexora AI Server') {
+          hasAdvanced = true;
+          const contexts = details.contexts_loaded || {};
+          modalContainer.innerHTML = `
+            <div class="grid grid-cols-2 gap-4 mb-4">
+              <div class="bg-black/40 p-3 rounded-xl border border-white/5">
+                <span class="text-[9px] uppercase text-slate-500 font-bold font-outfit">Database Status</span>
+                <span class="text-sm font-bold text-emerald-400 block mt-0.5">${server.db_ok ? 'Connected' : 'Disconnected'}</span>
+              </div>
+              <div class="bg-black/40 p-3 rounded-xl border border-white/5">
+                <span class="text-[9px] uppercase text-slate-500 font-bold font-outfit">Redis Status</span>
+                <span class="text-sm font-bold text-emerald-400 block mt-0.5">${server.redis_ok ? 'Connected' : 'Disconnected'}</span>
+              </div>
+            </div>
+
+            <div class="bg-black/40 p-4 rounded-xl border border-white/5 mb-4">
+              <span class="text-[9px] uppercase text-slate-500 font-bold font-outfit tracking-wider block mb-2">Contexts Loaded</span>
+              <div class="grid grid-cols-2 gap-2 text-xs font-mono">
+                <div class="flex justify-between border-b border-white/5 pb-1"><span class="text-slate-400">Category:</span> <span class="text-slate-200">${contexts.category !== undefined ? contexts.category : 'N/A'}</span></div>
+                <div class="flex justify-between border-b border-white/5 pb-1"><span class="text-slate-400">Merchant:</span> <span class="text-slate-200">${contexts.merchant !== undefined ? contexts.merchant : 'N/A'}</span></div>
+                <div class="flex justify-between border-b border-white/5 pb-1"><span class="text-slate-400">Customer:</span> <span class="text-slate-200">${contexts.customer !== undefined ? contexts.customer : 'N/A'}</span></div>
+                <div class="flex justify-between border-b border-white/5 pb-1"><span class="text-slate-400">Trigger:</span> <span class="text-slate-200">${contexts.trigger !== undefined ? contexts.trigger : 'N/A'}</span></div>
+              </div>
+            </div>
+            
+            <div class="bg-black/40 p-4 rounded-xl border border-white/5 text-xs font-mono space-y-1">
+              <div class="text-slate-500 uppercase font-bold tracking-wider text-[9px] mb-2 font-outfit">System Performance</div>
+              <div class="flex justify-between"><span class="text-slate-400">Total Actions:</span> <span class="text-slate-200">${details.total_actions_logged !== undefined ? details.total_actions_logged : 'N/A'}</span></div>
+              <div class="flex justify-between"><span class="text-slate-400">Total Replies:</span> <span class="text-slate-200">${details.total_replies_logged !== undefined ? details.total_replies_logged : 'N/A'}</span></div>
+              <div class="flex justify-between"><span class="text-slate-400">Suppression Keys:</span> <span class="text-slate-200">${details.active_suppression_keys !== undefined ? details.active_suppression_keys : 'N/A'}</span></div>
+              <div class="flex justify-between"><span class="text-slate-400">Memory Usage:</span> <span class="text-slate-200">${details.memory_usage_mb !== undefined ? details.memory_usage_mb + ' MB' : 'N/A'}</span></div>
+              <div class="flex justify-between"><span class="text-slate-400">Environment:</span> <span class="text-slate-200 capitalize">${details.environment || 'N/A'}</span></div>
             </div>
           `;
         }

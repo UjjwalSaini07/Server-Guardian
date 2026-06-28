@@ -109,6 +109,8 @@ def evaluate_health_score(
             db_ok = bool(response_json["database_ok"])
         elif "database" in response_json:
             db_ok = bool(response_json["database"])
+        elif "mongo_connected" in response_json:
+            db_ok = bool(response_json["mongo_connected"])
 
         # Cache
         if "redis_ok" in response_json:
@@ -117,6 +119,8 @@ def evaluate_health_score(
             cache_ok = bool(response_json["cache_ok"])
         elif "redis" in response_json:
             cache_ok = bool(response_json["redis"])
+        elif "redis_connected" in response_json:
+            cache_ok = bool(response_json["redis_connected"])
 
     if db_ok is False:
         score -= 15

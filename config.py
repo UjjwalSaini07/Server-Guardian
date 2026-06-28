@@ -11,6 +11,7 @@ QUILLIX_API_URL = os.getenv("QUILLIX_API_URL") or os.getenv("API_URL")
 AFFILIATE_HEALTH_URL = os.getenv("AFFILIATE_HEALTH_URL")
 STOCK_SENTINEL_URL = os.getenv("STOCK_SENTINEL_URL")
 VISIONRETAIL_IQ_URL = os.getenv("VISIONRETAIL_IQ_URL")
+NEXORA_SERVER_URL = os.getenv("NEXORA_SERVER_URL")
 
 # Unified list of monitored services and scraping workers
 SERVICES_CONFIG = [
@@ -76,6 +77,24 @@ SERVICES_CONFIG = [
         "health_schema": {
             "required_fields": ["status"],
             "expected_values": {"status": "healthy"}
+        }
+    },
+    {
+        "service_id": "nexora_server",
+        "name": "Nexora AI Server",
+        "type": "pinger",
+        "url": NEXORA_SERVER_URL,
+        "enabled": True,
+        "interval_minutes": 10,
+        "db_name": "ServerAutomation",
+        "collection_name": "health_logs",
+        "log_expiry_hours": 1,
+        "allowed_hours_ist": None,  # 24/7 Keep Alive
+        "allowed_days": [0, 1, 2, 3, 4, 5, 6],
+        "parse_analytics": True,
+        "health_schema": {
+            "required_fields": ["status"],
+            "expected_values": {"status": "ok"}
         }
     }
 ]
