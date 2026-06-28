@@ -38,5 +38,6 @@ jobs:
           EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
           EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
           ENABLE_STOCK_SCRAPER: ${{ secrets.ENABLE_STOCK_SCRAPER }}
+          LATENCY_PASS: ${{ secrets.LATENCY_PASS }}
           ALERT_RECIPIENTS: ${{ secrets.ALERT_RECIPIENTS }}
         run: python monitor_runner.py

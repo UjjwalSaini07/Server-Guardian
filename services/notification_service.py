@@ -1,5 +1,6 @@
 import logging
 from datetime import datetime, timezone, timedelta
+from config import LATENCY_PASS
 from services.email_provider import (
     send_alert_email,
     format_service_down_template,
@@ -140,6 +141,9 @@ def process_alert(service_id, service_name, alert_type, severity, message, detai
                 return
                 
         elif alert_type == "HIGH_LATENCY":
+            if not LATENCY_PASS:
+                logging.info(f"[NotificationService] Suppressing latency notification for {service_name} because LATENCY_PASS is False.")
+                return
             # Prevent latency warnings spamming (rate limit to once per 30 minutes)
             last_warning = state_doc.get("last_latency_warning_at")
             should_warn = True

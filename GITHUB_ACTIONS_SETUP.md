@@ -48,6 +48,7 @@ GitHub Actions executes `monitor_runner.py` and requires database credentials an
 | `VISIONRETAIL_IQ_URL` | VisionRetail IQ health metrics endpoint url | `https://<domain>.onrender.com/health` |
 | `NEXORA_SERVER_URL` | Nexora AI Server health metrics endpoint url | `https://<domain>.onrender.com/v1/healthz` |
 | `ENABLE_STOCK_SCRAPER` | Set to `true` to run stock scraping worker | `true` |
+| `LATENCY_PASS` | Set to `true` to notify on high latency warnings (defaults to `false`) | `false` |
 | `EMAIL_HOST` | *(Optional)* SMTP mail server host | `smtp.gmail.com` |
 | `EMAIL_PORT` | *(Optional)* SMTP mail server port | `587` |
 | `EMAIL_USER` | *(Optional)* SMTP sender email address | `alerts@example.com` |

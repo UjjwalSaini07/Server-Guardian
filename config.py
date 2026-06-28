@@ -99,8 +99,10 @@ SERVICES_CONFIG = [
     }
 ]
 
-# Enable/Disable Stock Scraper via environment variable
 ENABLE_STOCK_SCRAPER = os.getenv("ENABLE_STOCK_SCRAPER", "true").lower() in ("1", "true", "yes")
+
+# Enable/Disable Latency Alerts via environment variable (defaults to False)
+LATENCY_PASS = os.getenv("LATENCY_PASS", "false").lower() in ("1", "true", "yes")
 
 if ENABLE_STOCK_SCRAPER:
     SERVICES_CONFIG.append({
