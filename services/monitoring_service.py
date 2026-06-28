@@ -4,7 +4,7 @@ import logging
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 from pymongo import MongoClient, ASCENDING
-from config import SERVICES_CONFIG
+from config import SERVICES_CONFIG, HISTORY_CLEANUP_DAYS
 
 MONITOR_VERSION = "1.0"
 
@@ -41,6 +41,29 @@ def init_db_indexes(mongo_client):
                 logging.info(f"[MonitoringService] TTL index verified on {s['db_name']}.{s['collection_name']}")
             except Exception as e:
                 logging.error(f"[MonitoringService] Failed to create TTL index for {s['name']}: {e}")
+
+    # Initialize TTL index on monitoring_history to purge records older than HISTORY_CLEANUP_DAYS
+    try:
+        db = mongo_client["ServerAutomation"]
+        col = db["monitoring_history"]
+        expected_seconds = HISTORY_CLEANUP_DAYS * 24 * 3600
+        existing_indexes = col.index_information()
+        
+        recreate_ttl = False
+        if "timestamp_ttl" in existing_indexes:
+            current_expire = existing_indexes["timestamp_ttl"].get("expireAfterSeconds")
+            if current_expire != expected_seconds:
+                logging.info(f"[MonitoringService] Recreating TTL index on monitoring_history because retention days changed from {current_expire // (24 * 3600)} to {HISTORY_CLEANUP_DAYS}...")
+                col.drop_index("timestamp_ttl")
+                recreate_ttl = True
+        else:
+            recreate_ttl = True
+            
+        if recreate_ttl:
+            col.create_index([("timestamp", ASCENDING)], name="timestamp_ttl", expireAfterSeconds=expected_seconds)
+            logging.info(f"[MonitoringService] TTL index verified on monitoring_history for {HISTORY_CLEANUP_DAYS} days retention.")
+    except Exception as e:
+        logging.error(f"[MonitoringService] Failed to create TTL index on monitoring_history: {e}")
 
 def execute_ping(service, mongo_client):
     """Ping a service, record latency, parse metrics, and save to MongoDB collections."""

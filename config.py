@@ -104,6 +104,9 @@ ENABLE_STOCK_SCRAPER = os.getenv("ENABLE_STOCK_SCRAPER", "true").lower() in ("1"
 # Enable/Disable Latency Alerts via environment variable (defaults to False)
 LATENCY_PASS = os.getenv("LATENCY_PASS", "false").lower() in ("1", "true", "yes")
 
+# Number of days to retain monitoring history logs in the database (defaults to 30)
+HISTORY_CLEANUP_DAYS = int(os.getenv("HISTORY_CLEANUP_DAYS", "30"))
+
 if ENABLE_STOCK_SCRAPER:
     SERVICES_CONFIG.append({
         "service_id": "stock_scraper",
