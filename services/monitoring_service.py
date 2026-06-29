@@ -112,11 +112,39 @@ def execute_ping(service, mongo_client):
     now = datetime.now(timezone.utc)
     expire_time = now + timedelta(hours=service.get("log_expiry_hours", 1))
     
-    start_time = time.time()
-    try:
-        response = requests.get(url, timeout=60)
-        latency = (time.time() - start_time) * 1000
+    max_attempts = 3
+    attempt = 0
+    backoff_delay = 5
+    response = None
+    last_exception = None
+    latency = 0
+    
+    while attempt < max_attempts:
+        attempt += 1
+        attempt_start_time = time.time()
+        try:
+            response = requests.get(url, timeout=60)
+            status_code = response.status_code
+            latency = (time.time() - attempt_start_time) * 1000
+            
+            # Retry only on 502, 503, 504 (standard gateway/sleep/spin-up errors)
+            if status_code == 200 or (status_code < 502 or status_code > 504):
+                break
+            logging.warning(f"[MonitoringService] Ping attempt {attempt} for {name} returned status {status_code}. Retrying in {backoff_delay}s...")
+        except requests.exceptions.RequestException as e:
+            logging.warning(f"[MonitoringService] Ping attempt {attempt} for {name} failed with connection error: {e}. Retrying in {backoff_delay}s...")
+            response = None
+            last_exception = e
+            latency = (time.time() - attempt_start_time) * 1000
+            
+        if attempt < max_attempts:
+            time.sleep(backoff_delay)
+            backoff_delay *= 2
+
+    if response is None:
+        raise last_exception if last_exception else requests.exceptions.RequestException("Max ping retries exceeded.")
         
+    try:
         status_code = response.status_code
         status = "SUCCESS" if status_code == 200 else f"FAILED: {status_code}"
         

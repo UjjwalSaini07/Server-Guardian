@@ -17,11 +17,23 @@ logging.basicConfig(level=logging.INFO, format="[%(asctime)s] %(message)s", date
 
 def run_all_jobs():
     """Main execution entrypoint for GitHub Actions monitoring runner."""
-    load_dotenv()
+    from pathlib import Path
+    env_path = Path(__file__).resolve().parent / ".env"
+    load_dotenv(dotenv_path=env_path, override=True)
     
     # Connect to MongoDB
     logging.info("[Runner] Connecting to MongoDB...")
     mongo_client = MongoClient(MONGO_URI)
+    
+    # Ping dashboard to keep it awake if DASHBOARD_URL is set
+    dashboard_url = os.getenv("DASHBOARD_URL")
+    if dashboard_url:
+        try:
+            logging.info(f"[Runner] Keeping dashboard awake by pinging: {dashboard_url}...")
+            import requests
+            requests.get(dashboard_url, timeout=30)
+        except Exception as e:
+            logging.warning(f"[Runner] Failed to ping dashboard: {e}")
     
     db = mongo_client["ServerAutomation"]
     status_col = db["github_actions_status"]

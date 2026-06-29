@@ -99,6 +99,21 @@ def open_incident(
         incident_id = _generate_incident_id(mongo_client)
         mttd = _compute_mttd(service_id, now, mongo_client)
 
+        # Generate SRE-level root cause diagnostics using Groq AI
+        ai_analysis = ""
+        if os.getenv("GROQ_API_KEY"):
+            try:
+                from services.groq_service import generate_groq_analysis
+                ai_analysis = generate_groq_analysis(
+                    service_id=service_id,
+                    service_name=service_name,
+                    failure_reason=failure_reason or f"Triggered by {trigger_alert_type}",
+                    mongo_client=mongo_client
+                )
+            except Exception as ai_err:
+                logging.error(f"[IncidentService] Groq AI analysis failed: {ai_err}")
+                ai_analysis = f"Failed to generate AI analysis: {ai_err}"
+
         incident_doc = {
             "incident_id": incident_id,
             "service_id": service_id,
@@ -114,6 +129,7 @@ def open_incident(
             "failure_reason": failure_reason,
             "mttd_seconds": mttd,
             "mttr_seconds": None,
+            "ai_analysis": ai_analysis,
             "timeline": [
                 {
                     "timestamp": now,
@@ -410,6 +426,7 @@ def _serialize_incident(doc: dict) -> dict:
         "failure_reason": doc.get("failure_reason"),
         "mttd_seconds": doc.get("mttd_seconds"),
         "mttr_seconds": doc.get("mttr_seconds"),
+        "ai_analysis": doc.get("ai_analysis", ""),
         "timeline": timeline,
     }
 

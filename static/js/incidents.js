@@ -201,6 +201,18 @@
       document.getElementById('inc-modal-trigger').textContent = data.trigger_alert_type || '--';
       document.getElementById('inc-modal-reason').textContent = data.failure_reason || 'No failure reason captured.';
 
+      // AI Diagnostics (Groq) rendering
+      const aiContainer = document.getElementById('inc-modal-ai-analysis-container');
+      const aiText = document.getElementById('inc-modal-ai-analysis');
+      if (aiContainer && aiText) {
+        if (data.ai_analysis) {
+          aiText.textContent = data.ai_analysis;
+          aiContainer.classList.remove('hidden');
+        } else {
+          aiContainer.classList.add('hidden');
+        }
+      }
+
       // Timeline events rendering
       const timelineContainer = document.getElementById('inc-modal-timeline');
       if (timelineContainer && data.timeline) {

@@ -771,6 +771,9 @@ def parse_health_json(service_name: str, data: dict) -> dict:
             parsed["details"]["active_suppression_keys"]  = data.get("active_suppression_keys")
             parsed["details"]["environment"]               = data.get("environment")
             parsed["details"]["memory_usage_mb"]           = data.get("memory_usage_mb")
+            parsed["details"]["error"]                     = data.get("error") or data.get("message")
+            parsed["details"]["errors"]                    = data.get("errors")
+            parsed["details"]["status"]                    = data.get("status")
 
     except Exception as exc:
         logger.error("[AnalyticsService] parse_health_json error for %s: %s", service_name, exc)

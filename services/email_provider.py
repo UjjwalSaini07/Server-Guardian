@@ -62,8 +62,19 @@ def send_alert_email(subject, html_content):
                 logging.error("[EmailProvider] Failed to send email after maximum retries.")
                 return False
 
-def format_service_down_template(service_name, url, timestamp, reason, last_success_time):
+def format_service_down_template(service_name, url, timestamp, reason, last_success_time, ai_analysis=None):
     """Format HTML email template for SERVICE_DOWN alerts."""
+    ai_section = ""
+    if ai_analysis:
+        ai_section = f"""
+        <div style="margin-top: 20px; padding: 15px; border: 1px solid #c7d2fe; border-radius: 8px; background-color: #f5f7ff; color: #3730a3;">
+            <h3 style="margin-top: 0; color: #4338ca; font-size: 13px; font-weight: bold; text-transform: uppercase; font-family: sans-serif; display: flex; align-items: center; gap: 6px;">
+                🧠 AI Root Cause Diagnostics
+            </h3>
+            <p style="margin-bottom: 0; font-size: 12px; white-space: pre-wrap; font-family: monospace; line-height: 1.5; color: #1e1b4b;">{ai_analysis}</p>
+        </div>
+        """
+
     return f"""
     <html>
         <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
@@ -93,7 +104,8 @@ def format_service_down_template(service_name, url, timestamp, reason, last_succ
                         <td style="padding: 6px 0;">{last_success_time}</td>
                     </tr>
                 </table>
-                <p style="font-size: 11px; color: #999; border-top: 1px solid #eee; padding-top: 10px; margin-bottom: 0;">
+                {ai_section}
+                <p style="font-size: 11px; color: #999; border-top: 1px solid #eee; padding-top: 10px; margin-top: 20px; margin-bottom: 0;">
                     This is an automated notification from ServerGuardian. Duplicate alerts for this incident are suppressed.
                 </p>
             </div>

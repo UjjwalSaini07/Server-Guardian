@@ -61,7 +61,7 @@ def process_alert(service_id, service_name, alert_type, severity, message, detai
                     upsert=True
                 )
                 # ── Phase 3B: Open formal incident ──────────────────────────
-                incident_service.open_incident(
+                incident_id = incident_service.open_incident(
                     service_id=service_id,
                     service_name=service_name,
                     trigger_alert_type=alert_type,
@@ -69,6 +69,13 @@ def process_alert(service_id, service_name, alert_type, severity, message, detai
                     severity="critical",
                     mongo_client=mongo_client,
                 )
+                
+                # Retrieve AI analysis from the newly created incident
+                ai_analysis = None
+                if incident_id:
+                    inc_doc = incident_service.get_incident_by_id(incident_id, mongo_client)
+                    if inc_doc:
+                        ai_analysis = inc_doc.get("ai_analysis")
                 # ────────────────────────────────────────────────────────────
                 send_email = True
                 subject = f"🚨 Service Down - {service_name}"
@@ -87,7 +94,8 @@ def process_alert(service_id, service_name, alert_type, severity, message, detai
                     url=details.get("url", "-"),
                     timestamp=_fmt_ist(now),
                     reason=details.get("reason", "Unknown error"),
-                    last_success_time=last_ok_str
+                    last_success_time=last_ok_str,
+                    ai_analysis=ai_analysis
                 )
             else:
                 # Outage is already active, suppress duplicate notification

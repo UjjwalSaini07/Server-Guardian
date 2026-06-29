@@ -964,6 +964,14 @@
           </div>
         </div>
 
+        <!-- AI Outage Diagnostics (Groq) -->
+        <div id="modal-ai-analysis-container" class="bg-indigo-500/10 p-4 rounded-xl border border-indigo-500/20 hidden">
+          <span class="text-[10px] uppercase text-indigo-400 font-semibold tracking-wider block font-outfit font-bold flex items-center gap-1.5">
+            <i class="fa-solid fa-brain"></i> AI Diagnostics & Root Cause Analysis
+          </span>
+          <p id="modal-ai-analysis" class="text-xs text-slate-200 mt-1.5 leading-relaxed whitespace-pre-wrap font-mono">--</p>
+        </div>
+
         <!-- Raw Response Block -->
         <div>
           <h4 class="font-outfit font-bold text-sm text-slate-200 mb-2.5"><i class="fa-solid fa-terminal mr-2 text-pink-400"></i> Last Raw Server Payload</h4>
@@ -1132,6 +1140,14 @@
         <div class="bg-white/5 p-4 rounded-xl border border-white/5">
           <span class="text-[10px] uppercase text-slate-500 font-semibold tracking-wider block font-outfit font-bold">Root Cause / Failure Reason</span>
           <p id="inc-modal-reason" class="text-xs text-slate-300 mt-1.5 leading-relaxed">--</p>
+        </div>
+
+        <!-- AI Diagnostics (Groq) -->
+        <div id="inc-modal-ai-analysis-container" class="bg-indigo-500/10 p-4 rounded-xl border border-indigo-500/20 hidden">
+          <span class="text-[10px] uppercase text-indigo-400 font-semibold tracking-wider block font-outfit font-bold flex items-center gap-1.5">
+            <i class="fa-solid fa-brain"></i> AI Diagnostics & Root Cause Analysis
+          </span>
+          <p id="inc-modal-ai-analysis" class="text-xs text-slate-200 mt-1.5 leading-relaxed whitespace-pre-wrap font-mono">--</p>
         </div>
 
         <!-- Timeline Log -->
@@ -1868,11 +1884,31 @@
         modalStatus.className = "text-xs font-bold block mt-1 uppercase text-neonOrange";
       }
 
+      // Fetch latest incident for AI analysis if available
+      const aiContainer = document.getElementById('modal-ai-analysis-container');
+      const aiText = document.getElementById('modal-ai-analysis');
+      if (aiContainer && aiText) {
+        aiContainer.classList.add('hidden');
+        if (server.service_id) {
+          fetch(`/api/incidents?service_id=${server.service_id}&limit=1`)
+            .then(res => res.json())
+            .then(incidents => {
+              if (incidents && incidents.length > 0 && incidents[0].ai_analysis) {
+                aiText.textContent = incidents[0].ai_analysis;
+                aiContainer.classList.remove('hidden');
+              }
+            })
+            .catch(err => console.error("Error fetching AI diagnostics:", err));
+        }
+      }
+
       // Check if there are logs in audit feed for this service to fetch the last raw response payload
       const matchingLogs = allLogs.filter(l => l.service === serviceName);
       let lastResponse = "No response payload recorded in audit logs.";
       
-      if (matchingLogs.length > 0 && matchingLogs[0].response) {
+      if (server.error) {
+        lastResponse = `System Outage Error:\n${server.error}`;
+      } else if (matchingLogs.length > 0 && matchingLogs[0].response) {
         lastResponse = matchingLogs[0].response;
         // Attempt formatting if it is JSON
         try {
@@ -1983,17 +2019,33 @@
         if (server.name === 'Nexora AI Server') {
           hasAdvanced = true;
           const contexts = details.contexts_loaded || {};
+          const dbColor = server.db_ok ? 'text-emerald-400' : 'text-rose-400';
+          const redisColor = server.redis_ok ? 'text-emerald-400' : 'text-rose-400';
+          
+          let errorSection = '';
+          if (details.error || details.errors) {
+            const errStr = details.error || JSON.stringify(details.errors, null, 2);
+            errorSection = `
+              <div class="bg-rose-500/10 p-4 rounded-xl border border-rose-500/20 mb-4 text-xs font-mono">
+                <span class="text-[9px] uppercase text-rose-400 font-bold font-outfit tracking-wider block mb-2">Error Logs / Diagnostics</span>
+                <div class="text-rose-200 whitespace-pre-wrap">${errStr}</div>
+              </div>
+            `;
+          }
+
           modalContainer.innerHTML = `
             <div class="grid grid-cols-2 gap-4 mb-4">
               <div class="bg-black/40 p-3 rounded-xl border border-white/5">
                 <span class="text-[9px] uppercase text-slate-500 font-bold font-outfit">Database Status</span>
-                <span class="text-sm font-bold text-emerald-400 block mt-0.5">${server.db_ok ? 'Connected' : 'Disconnected'}</span>
+                <span class="text-sm font-bold ${dbColor} block mt-0.5">${server.db_ok ? 'Connected' : 'Disconnected'}</span>
               </div>
               <div class="bg-black/40 p-3 rounded-xl border border-white/5">
                 <span class="text-[9px] uppercase text-slate-500 font-bold font-outfit">Redis Status</span>
-                <span class="text-sm font-bold text-emerald-400 block mt-0.5">${server.redis_ok ? 'Connected' : 'Disconnected'}</span>
+                <span class="text-sm font-bold ${redisColor} block mt-0.5">${server.redis_ok ? 'Connected' : 'Disconnected'}</span>
               </div>
             </div>
+
+            ${errorSection}
 
             <div class="bg-black/40 p-4 rounded-xl border border-white/5 mb-4">
               <span class="text-[9px] uppercase text-slate-500 font-bold font-outfit tracking-wider block mb-2">Contexts Loaded</span>
