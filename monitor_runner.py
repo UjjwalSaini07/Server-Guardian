@@ -15,8 +15,14 @@ from services.scraper_service import run_scraper
 
 logging.basicConfig(level=logging.INFO, format="[%(asctime)s] %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
 
+import asyncio
+
 def run_all_jobs():
     """Main execution entrypoint for GitHub Actions monitoring runner."""
+    asyncio.run(run_all_jobs_async())
+
+async def run_all_jobs_async():
+    """Asynchronous runner implementation."""
     from pathlib import Path
     env_path = Path(__file__).resolve().parent / ".env"
     load_dotenv(dotenv_path=env_path, override=True)
@@ -57,35 +63,22 @@ def run_all_jobs():
     # Initialize indexes
     init_db_indexes(mongo_client)
     
-    threads = []
+    # Run all pingers asynchronously
+    from services.async_monitoring_service import monitor_all_services
+    pinger_task = monitor_all_services(mongo_client)
     
-    def run_job(service):
-        try:
-            name = service["name"]
-            if not service.get("enabled", True):
-                logging.info(f"[Runner] Skipping disabled service: {name}")
-                return
-                
-            if service["type"] == "pinger":
-                logging.info(f"[Runner] Starting ping check for {name}...")
-                execute_ping(service, mongo_client)
-            elif service["type"] == "scraper":
-                logging.info(f"[Runner] Starting scraper check for {name}...")
-                run_scraper(service, mongo_client)
-        except Exception as e:
-            logging.error(f"[Runner] Error executing job for {service['name']}: {e}")
-            raise e
-
-    # Start all jobs concurrently
+    # Run scraper jobs concurrently in threads (since scraper logic is blocking/synchronous)
+    scraper_tasks = []
     for s in SERVICES_CONFIG:
-        if s.get("enabled", True):
-            t = threading.Thread(target=run_job, args=(s,), name=f"run-{s['name']}")
-            t.start()
-            threads.append(t)
+        if s.get("enabled", True) and s["type"] == "scraper":
+            logging.info(f"[Runner] Scheduling scraper check for {s['name']} in thread pool...")
+            scraper_tasks.append(asyncio.to_thread(run_scraper, s, mongo_client))
             
-    # Wait for all jobs to complete
-    for t in threads:
-        t.join()
+    # Gather all tasks concurrently
+    if scraper_tasks:
+        await asyncio.gather(pinger_task, *scraper_tasks, return_exceptions=True)
+    else:
+        await pinger_task
         
     logging.info("[Runner] All jobs completed.")
     
@@ -112,7 +105,7 @@ def run_all_jobs():
         },
         upsert=True
     )
-    
+    # Close MongoClient connection
     mongo_client.close()
     logging.info("[Runner] Database connection closed. Exit cleanly.")
 

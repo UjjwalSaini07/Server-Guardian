@@ -779,3 +779,150 @@ def parse_health_json(service_name: str, data: dict) -> dict:
         logger.error("[AnalyticsService] parse_health_json error for %s: %s", service_name, exc)
 
     return parsed
+
+
+# ---------------------------------------------------------------------------
+# Additive: get_performance_analytics & Anomaly Detection (Observability Upgrade)
+# ---------------------------------------------------------------------------
+
+def get_performance_analytics(service_id: str, mongo_client, days: int = 30) -> dict:
+    """
+    Compute enterprise-grade Performance Analytics for a service.
+    Includes rolling averages, latency percentiles, trend indicators, anomalies, and summary suggestions.
+    """
+    try:
+        col = _get_col(mongo_client)
+        now = datetime.now(timezone.utc)
+        
+        # 1. Fetch rolling data windows
+        cut_1h = now - timedelta(hours=1)
+        cut_24h = now - timedelta(days=1)
+        
+        # Fetch records
+        records_30d = list(col.find({"service_id": service_id, "timestamp": {"$gte": now - timedelta(days=days)}}).sort("timestamp", -1))
+        
+        if not records_30d:
+            return {
+                "service_id": service_id,
+                "performance_score": 100.0,
+                "performance_trend": "Stable",
+                "rolling_averages": {"1h_ms": 0.0, "24h_ms": 0.0, "7d_ms": 0.0, "30d_ms": 0.0},
+                "latency_metrics": {"avg_ms": 0.0, "median_ms": 0.0, "min_ms": 0.0, "max_ms": 0.0, "p95_ms": 0.0, "p99_ms": 0.0},
+                "trends": {"latency_trend": "Stable", "availability_trend": "Stable", "health_trend": "Stable"},
+                "anomalies": [],
+                "summary": "No validation data recorded to compute performance aggregates."
+            }
+            
+        def _avg_lat(recs) -> float:
+            lats = [r["latency_ms"] for r in recs if r.get("latency_ms") is not None]
+            return round(sum(lats) / len(lats), 2) if lats else 0.0
+
+        # Calculations
+        avg_1h = _avg_lat([r for r in records_30d if r["timestamp"] >= cut_1h])
+        avg_24h = _avg_lat([r for r in records_30d if r["timestamp"] >= cut_24h])
+        avg_7d = _avg_lat([r for r in records_30d if r["timestamp"] >= (now - timedelta(days=7))])
+        avg_30d = _avg_lat(records_30d)
+        
+        # Latency lists
+        all_lats = sorted([r["latency_ms"] for r in records_30d if r.get("latency_ms") is not None])
+        metrics = _latency_percentiles_from_list(all_lats)
+        
+        # Latency Trend
+        # Compare last 7 days vs previous 7 days (7d to 14d)
+        recs_last_7d = [r for r in records_30d if r["timestamp"] >= (now - timedelta(days=7))]
+        recs_prev_7d = [r for r in records_30d if (now - timedelta(days=14)) <= r["timestamp"] < (now - timedelta(days=7))]
+        avg_last_7 = _avg_lat(recs_last_7d)
+        avg_prev_7 = _avg_lat(recs_prev_7d)
+        
+        latency_trend = "Stable"
+        pct_change = 0.0
+        if avg_prev_7 > 0:
+            pct_change = ((avg_last_7 - avg_prev_7) / avg_prev_7) * 100.0
+            if pct_change > 10.0:
+                latency_trend = "Degrading"
+            elif pct_change < -10.0:
+                latency_trend = "Improving"
+                
+        # Availability Trend
+        # Uptime comparison
+        def _uptime_pct(recs) -> float:
+            total = len(recs)
+            if total == 0:
+                return 100.0
+            success = sum(1 for r in recs if r.get("status") == "success")
+            return (success / total) * 100.0
+            
+        up_last_7 = _uptime_pct(recs_last_7d)
+        up_prev_7 = _uptime_pct(recs_prev_7d)
+        availability_trend = "Stable"
+        if up_last_7 < up_prev_7 - 0.5:
+            availability_trend = "Degrading"
+        elif up_last_7 > up_prev_7 + 0.5:
+            availability_trend = "Improving"
+            
+        health_trend = "Stable"
+        if latency_trend == "Degrading" or availability_trend == "Degrading":
+            health_trend = "Degrading"
+        elif latency_trend == "Improving" and availability_trend != "Degrading":
+            health_trend = "Improving"
+            
+        # Anomaly detection (sudden spikes > 3x average)
+        anomalies = []
+        if len(all_lats) > 5:
+            threshold = max(300.0, avg_30d * 3.0)
+            for r in records_30d[:50]: # Look at last 50 runs
+                lat = r.get("latency_ms")
+                if lat and lat > threshold:
+                    anomalies.append({
+                        "timestamp": r["timestamp"].isoformat(),
+                        "latency_ms": lat,
+                        "threshold": threshold,
+                        "type": "Latency Spike"
+                    })
+                    
+        # Performance Score (0 - 100)
+        perf_score = 100.0
+        # Deduct for degradation, anomalies, and latency
+        if latency_trend == "Degrading":
+            perf_score -= 10
+        if availability_trend == "Degrading":
+            perf_score -= 20
+        perf_score -= min(30, len(anomalies) * 5)
+        # Latency penalty
+        if avg_30d > 1000:
+            perf_score -= min(20, (avg_30d - 1000) / 100)
+        perf_score = max(0.0, min(100.0, perf_score))
+
+        # Summary Generation
+        direction = "increased" if pct_change > 0 else "decreased"
+        abs_change = abs(pct_change)
+        summary_text = f"Average latency {direction} by {abs_change:.1f}% during the last seven days."
+        
+        if health_trend == "Degrading":
+            summary_text += " Performance Trend: Degrading. Recommendation: Investigate backend database performance."
+        else:
+            summary_text += f" Performance Trend: {health_trend}."
+
+        return {
+            "service_id": service_id,
+            "performance_score": round(perf_score, 1),
+            "performance_trend": health_trend,
+            "rolling_averages": {
+                "1h_ms": avg_1h,
+                "24h_ms": avg_24h,
+                "7d_ms": avg_7d,
+                "30d_ms": avg_30d
+            },
+            "latency_metrics": metrics,
+            "trends": {
+                "latency_trend": latency_trend,
+                "availability_trend": availability_trend,
+                "health_trend": health_trend
+            },
+            "anomalies": anomalies,
+            "summary": summary_text
+        }
+    except Exception as exc:
+        logger.error("[AnalyticsService] get_performance_analytics error for %s: %s", service_id, exc)
+        return {}
+

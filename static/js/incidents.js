@@ -44,9 +44,8 @@
   // ── Incidents Dashboard ───────────────────────────────────────────────────
   async function loadIncidentsDashboard() {
     try {
-      // 1. Fetch and render last 20 incidents
-      const incidents = await fetchWithCache('/api/incidents?limit=20', CACHE_TTL.incidents);
-      renderIncidentTimelineTable(incidents);
+      // 1. Fetch and render active timeline tab
+      await loadActiveTimeline();
 
       // 2. Fetch and render incident metrics for MTTD / MTTR / Total Alerts
       const metrics = await fetchWithCache('/api/incidents/metrics?days=30', CACHE_TTL.incidentMetrics);
@@ -57,6 +56,145 @@
         addToTerminal(`Failed to update Incident Timeline: ${err.message || err}`, "error");
       }
     }
+  }
+
+  let currentTimelineTab = 'incidents';
+
+  async function loadActiveTimeline() {
+    const serviceFilter = document.getElementById('timeline-service-filter')?.value || 'ALL';
+    const body = document.getElementById('incidents-table-body');
+    const tableHeader = document.querySelector('#incidents-table-body').closest('table').querySelector('thead tr');
+    
+    if (!body) return;
+
+    try {
+      if (currentTimelineTab === 'incidents') {
+        // Render headers for Incidents
+        if (tableHeader) {
+          tableHeader.innerHTML = `
+            <th class="py-2.5 px-4 font-outfit">Incident ID</th>
+            <th class="py-2.5 px-4 font-outfit">Service</th>
+            <th class="py-2.5 px-4 text-center font-outfit">Severity</th>
+            <th class="py-2.5 px-4 font-outfit">Downtime Started (IST)</th>
+            <th class="py-2.5 px-4 text-right font-outfit">MTTR / Duration</th>
+            <th class="py-2.5 px-4 text-center font-outfit">Status</th>
+          `;
+        }
+        
+        let url = '/api/incidents?limit=20';
+        if (serviceFilter !== 'ALL') {
+          // Map to correct service_id
+          url = `/api/incidents?service_id=${serviceFilter}&limit=20`;
+        }
+        
+        const incidents = await fetchWithCache(url, CACHE_TTL.incidents);
+        renderIncidentTimelineTable(incidents);
+      } else {
+        // Render headers for All Events
+        if (tableHeader) {
+          tableHeader.innerHTML = `
+            <th class="py-2.5 px-4 font-outfit">Timestamp (IST)</th>
+            <th class="py-2.5 px-4 font-outfit">Service</th>
+            <th class="py-2.5 px-4 font-outfit">Event Type</th>
+            <th class="py-2.5 px-4 text-center font-outfit">Severity</th>
+            <th class="py-2.5 px-4 font-outfit">Description</th>
+            <th class="py-2.5 px-4 text-right font-outfit">Duration / RCA</th>
+          `;
+        }
+        
+        let url = '/api/timeline?limit=50';
+        if (serviceFilter !== 'ALL') {
+          url = `/api/timeline/${serviceFilter}?limit=50`;
+        }
+        
+        const events = await fetchWithCache(url, CACHE_TTL.incidents);
+        renderChronologicalTimelineTable(events);
+      }
+    } catch (err) {
+      console.error("[IncidentsJS] Failed to load timeline data:", err);
+      body.innerHTML = `<tr><td colspan="6" class="py-8 text-center text-rose-400">Failed to load timeline telemetry data.</td></tr>`;
+    }
+  }
+
+  function renderChronologicalTimelineTable(events) {
+    const body = document.getElementById('incidents-table-body');
+    if (!body) return;
+
+    if (!events || events.length === 0) {
+      body.innerHTML = `
+        <tr>
+          <td colspan="6" class="py-8 text-center text-slate-500 font-outfit">
+            No chronological timeline events logged.
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    body.innerHTML = events.map(ev => {
+      let severityClass = 'analytics-badge-excellent';
+      if (ev.severity === 'critical') severityClass = 'analytics-badge-critical';
+      else if (ev.severity === 'warning') severityClass = 'analytics-badge-warning';
+      else if (ev.severity === 'info') severityClass = 'bg-slate-500/10 text-slate-400 border border-white/5';
+      else if (ev.severity === 'success') severityClass = 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
+
+      const tsStr = typeof formatIST === 'function' ? formatIST(ev.timestamp) : ev.timestamp;
+      
+      let rcaDisplay = '--';
+      if (ev.root_cause && ev.root_cause.failure_type) {
+        rcaDisplay = `<span class="text-indigo-400 font-bold cursor-help" title="${ev.root_cause.recommended_action}">${ev.root_cause.failure_type}</span>`;
+      } else if (ev.duration !== null && ev.duration !== undefined) {
+        rcaDisplay = `${ev.duration}s`;
+      }
+
+      // Map service_id to human readable name if possible
+      let serviceName = ev.related_service;
+      if (ev.related_service === 'quillix_api') serviceName = 'NexGen Quillix Server';
+      else if (ev.related_service === 'affiliate_health') serviceName = 'Affiliate MVP Server';
+      else if (ev.related_service === 'stock_sentinel') serviceName = 'Stock Sentinel Server';
+      else if (ev.related_service === 'visionretail_iq') serviceName = 'Vision Retail IQ Server';
+      else if (ev.related_service === 'nexora_server') serviceName = 'Nexora AI Server';
+      else if (ev.related_service === 'stock_scraper') serviceName = 'Stock Scraper';
+
+      return `
+        <tr class="hover:bg-white/5 transition-all h-11 border-b border-white/5">
+          <td class="py-2.5 px-4 font-mono text-slate-400">${tsStr}</td>
+          <td class="py-2.5 px-4 font-semibold text-slate-100 font-outfit">${serviceName}</td>
+          <td class="py-2.5 px-4 font-mono text-indigo-400 uppercase text-[10px]">${ev.event_type}</td>
+          <td class="py-2.5 px-4 text-center">
+            <span class="px-2 py-0.5 rounded text-[8px] font-bold ${severityClass} uppercase">${ev.severity}</span>
+          </td>
+          <td class="py-2.5 px-4 text-slate-300 max-w-xs truncate" title="${ev.description}">${ev.description}</td>
+          <td class="py-2.5 px-4 text-right font-mono text-slate-300">${rcaDisplay}</td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  function switchTimelineTab(tab) {
+    currentTimelineTab = tab;
+    
+    const incBtn = document.getElementById('timeline-tab-incidents');
+    const evBtn = document.getElementById('timeline-tab-events');
+    
+    if (tab === 'incidents') {
+      if (incBtn) incBtn.className = 'px-3 py-1 rounded-md text-[10px] font-bold font-outfit uppercase tracking-wider bg-indigo-600/30 text-indigo-300 border border-indigo-500/20';
+      if (evBtn) evBtn.className = 'px-3 py-1 rounded-md text-[10px] font-bold font-outfit uppercase tracking-wider text-slate-400 hover:text-slate-200';
+    } else {
+      if (incBtn) incBtn.className = 'px-3 py-1 rounded-md text-[10px] font-bold font-outfit uppercase tracking-wider text-slate-400 hover:text-slate-200';
+      if (evBtn) evBtn.className = 'px-3 py-1 rounded-md text-[10px] font-bold font-outfit uppercase tracking-wider bg-indigo-600/30 text-indigo-300 border border-indigo-500/20';
+    }
+    
+    loadActiveTimeline();
+  }
+
+  function exportTimelineData() {
+    const serviceFilter = document.getElementById('timeline-service-filter')?.value || 'ALL';
+    let url = '/api/timeline';
+    if (serviceFilter !== 'ALL') {
+      url = `/api/timeline/${serviceFilter}`;
+    }
+    window.open(url, '_blank');
   }
 
   function renderIncidentTimelineTable(incidents) {
@@ -457,5 +595,8 @@
   window.toggleReportsPanel = toggleReportsPanel;
   window.switchReportTab = switchReportTab;
   window.downloadActiveReport = downloadActiveReport;
+  window.switchTimelineTab = switchTimelineTab;
+  window.loadActiveTimeline = loadActiveTimeline;
+  window.exportTimelineData = exportTimelineData;
 
 })();

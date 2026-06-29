@@ -358,6 +358,72 @@
           <p class="text-slate-400 text-xs col-span-full">Loading rankings...</p>
         </div>
       </div>
+
+      <!-- AI Observability & Reliability Intelligence (Phase 4 Additive) -->
+      <div class="glass-panel rounded-2xl p-6 mt-8">
+        <div class="flex flex-col sm:flex-row items-center justify-between gap-4 mb-6 pb-3 border-b border-white/5">
+          <div>
+            <h2 class="text-lg font-bold font-outfit text-slate-100 tracking-wide">
+              <i class="fa-solid fa-brain mr-2 text-purple-400"></i> AI Reliability &amp; Predictive Analytics
+            </h2>
+            <p class="text-xs text-slate-400">Composite reliability scoring, anomaly counts, and risk predictions based on historical telemetry</p>
+          </div>
+          <span class="text-[10px] font-mono text-purple-400 bg-purple-500/10 border border-purple-500/15 py-1 px-2.5 rounded-lg">AI Engine Active</span>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6" id="ai-reliability-deck">
+          <!-- Card 1: Platform Score -->
+          <div class="bg-white/5 border border-white/5 p-4 rounded-xl flex flex-col justify-between">
+            <div>
+              <span class="text-[9px] uppercase text-slate-500 font-bold tracking-wider block">Average Platform Reliability</span>
+              <span id="ai-platform-score" class="text-3xl font-black font-outfit text-slate-100 mt-2 block">--</span>
+            </div>
+            <div class="flex items-center gap-1.5 mt-4">
+              <span id="ai-platform-grade" class="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">-- Grade</span>
+              <span class="text-[9px] text-slate-500">Composite score</span>
+            </div>
+          </div>
+          
+          <!-- Card 2: Highest/Lowest Reliability -->
+          <div class="bg-white/5 border border-white/5 p-4 rounded-xl flex flex-col justify-between">
+            <div>
+              <span class="text-[9px] uppercase text-slate-500 font-bold tracking-wider block">Reliability Extremes</span>
+              <div class="mt-2 space-y-1">
+                <div class="flex justify-between text-xs">
+                  <span class="text-slate-400">Most Reliable:</span>
+                  <span id="ai-most-reliable" class="text-emerald-400 font-bold max-w-[120px] truncate">--</span>
+                </div>
+                <div class="flex justify-between text-xs">
+                  <span class="text-slate-400">Least Reliable:</span>
+                  <span id="ai-least-reliable" class="text-rose-400 font-bold max-w-[120px] truncate">--</span>
+                </div>
+              </div>
+            </div>
+            <span class="text-[9px] text-slate-500 mt-2 block">Telemetry-based ranking</span>
+          </div>
+
+          <!-- Card 3: Predictive Failure Risk -->
+          <div class="bg-white/5 border border-white/5 p-4 rounded-xl flex flex-col justify-between">
+            <div>
+              <span class="text-[9px] uppercase text-slate-500 font-bold tracking-wider block">Platform Failure Risk</span>
+              <span id="ai-failure-risk" class="text-xl font-bold font-outfit mt-1.5 block text-emerald-400">--</span>
+            </div>
+            <div class="text-[9px] text-slate-500 mt-2 flex items-center justify-between border-t border-white/5 pt-2">
+              <span>Risk Trend:</span>
+              <span id="ai-risk-trend" class="font-bold text-slate-300">Stable</span>
+            </div>
+          </div>
+
+          <!-- Card 4: Most Unstable (Anomalies) -->
+          <div class="bg-white/5 border border-white/5 p-4 rounded-xl flex flex-col justify-between">
+            <div>
+              <span class="text-[9px] uppercase text-slate-500 font-bold tracking-wider block">Most Unstable Node</span>
+              <span id="ai-most-unstable" class="text-xs font-bold text-slate-100 truncate block mt-1.5">--</span>
+            </div>
+            <span id="ai-prediction-summary" class="text-[9px] text-slate-400 mt-2 block"><i class="fa-solid fa-clock mr-1 text-purple-400"></i> Predict: --</span>
+          </div>
+        </div>
+      </div>
     </div>
 
 
@@ -759,15 +825,33 @@
 
     <!-- Incident Timeline Section (Phase 3) -->
     <div class="glass-panel rounded-2xl p-6 mb-8">
-      <div class="flex flex-col sm:flex-row items-center justify-between gap-4 mb-6 pb-3 border-b border-white/5">
+      <div class="flex flex-col xl:flex-row items-center justify-between gap-4 mb-6 pb-4 border-b border-white/5">
         <div>
           <h2 class="text-lg font-bold font-outfit text-slate-100 tracking-wide">
-            <i class="fa-solid fa-clock-rotate-left mr-2 text-pink-400"></i> Incident Timeline
+            <i class="fa-solid fa-clock-rotate-left mr-2 text-pink-400"></i> Platform Event Timeline
           </h2>
-          <p class="text-xs text-slate-400">Real-time log of platform outages and incident lifecycles</p>
+          <p class="text-xs text-slate-400">Chronological telemetry feed of all platform validation states, outages, and recovery events</p>
         </div>
-        <div class="flex gap-2">
-          <span class="text-[10px] font-mono text-slate-500 bg-white/5 border border-white/5 py-1 px-2.5 rounded-lg">Last 20 incidents</span>
+        <div class="flex flex-wrap gap-2.5 items-center justify-end w-full xl:w-auto">
+          <!-- View Tab Toggles -->
+          <div class="flex bg-slate-900 p-0.5 rounded-lg border border-white/5">
+            <button id="timeline-tab-incidents" onclick="switchTimelineTab('incidents')" class="px-3 py-1 rounded-md text-[10px] font-bold font-outfit uppercase tracking-wider bg-indigo-600/30 text-indigo-300 border border-indigo-500/20">Outages</button>
+            <button id="timeline-tab-events" onclick="switchTimelineTab('events')" class="px-3 py-1 rounded-md text-[10px] font-bold font-outfit uppercase tracking-wider text-slate-400 hover:text-slate-200">All Events</button>
+          </div>
+          <!-- Service Filter -->
+          <select id="timeline-service-filter" onchange="loadActiveTimeline()" class="bg-slate-800 text-slate-300 border border-white/5 rounded-lg text-[10px] font-mono py-1.5 px-3 focus:outline-none focus:ring-1 focus:ring-indigo-500">
+            <option value="ALL">All Services</option>
+            <option value="quillix_api">NexGen Quillix Server</option>
+            <option value="affiliate_health">Affiliate MVP Server</option>
+            <option value="stock_sentinel">Stock Sentinel Server</option>
+            <option value="visionretail_iq">Vision Retail IQ Server</option>
+            <option value="nexora_server">Nexora AI Server</option>
+            <option value="stock_scraper">Stock Scraper</option>
+          </select>
+          <!-- Export Button -->
+          <button onclick="exportTimelineData()" class="bg-white/5 hover:bg-indigo-600/30 text-slate-300 hover:text-white border border-white/5 hover:border-indigo-500/30 py-1.5 px-3.5 rounded-lg text-[10px] font-bold tracking-wide transition-all flex items-center gap-1.5">
+            <i class="fa-solid fa-file-export text-xs"></i> Export JSON
+          </button>
         </div>
       </div>
       
@@ -2203,6 +2287,61 @@
         if (historyRes.ok) {
           const historyData = await historyRes.json();
           renderAvailabilityTrendChart(historyData);
+        }
+
+        // 5. Fetch and Render AI Reliability Analytics Deck
+        const relRes = await fetch('/api/analytics/reliability');
+        if (relRes.ok) {
+          const relData = await relRes.json();
+          const score = relData.average_reliability_score || 100.0;
+          
+          document.getElementById('ai-platform-score').textContent = score.toFixed(1) + '/100';
+          
+          let grade = 'D';
+          if (score >= 97) grade = 'A+';
+          else if (score >= 93) grade = 'A';
+          else if (score >= 88) grade = 'B+';
+          else if (score >= 80) grade = 'B';
+          else if (score >= 70) grade = 'C';
+          
+          document.getElementById('ai-platform-grade').textContent = grade + ' Grade';
+          document.getElementById('ai-most-reliable').textContent = relData.most_reliable_service || 'N/A';
+          document.getElementById('ai-least-reliable').textContent = relData.least_reliable_service || 'N/A';
+          
+          // Failure risk evaluation based on score
+          let risk = 'Very Low';
+          let riskClass = 'text-neonGreen';
+          if (score < 50) {
+            risk = 'Critical';
+            riskClass = 'text-neonRed';
+          } else if (score < 70) {
+            risk = 'High';
+            riskClass = 'text-neonRed';
+          } else if (score < 85) {
+            risk = 'Medium';
+            riskClass = 'text-neonOrange';
+          } else if (score < 95) {
+            risk = 'Low';
+            riskClass = 'text-yellow-400';
+          }
+          
+          const riskEl = document.getElementById('ai-failure-risk');
+          riskEl.textContent = risk;
+          riskEl.className = `text-xl font-bold font-outfit mt-1.5 block ${riskClass}`;
+          
+          // Risk trend
+          let trend = 'Stable';
+          let worstPrediction = 'Stable';
+          
+          if (relData.details && relData.details.length > 0) {
+            const worstDoc = relData.details.find(d => d.service_name === relData.least_reliable_service) || relData.details[0];
+            trend = worstDoc.risk_trend || 'Stable';
+            worstPrediction = worstDoc.predicted_failure_window || 'Stable';
+          }
+          
+          document.getElementById('ai-risk-trend').textContent = trend;
+          document.getElementById('ai-prediction-summary').innerHTML = `<i class="fa-solid fa-clock mr-1 text-purple-400"></i> Predict: ${worstPrediction}`;
+          document.getElementById('ai-most-unstable').textContent = relData.most_unstable_service || 'N/A';
         }
       } catch (err) {
         console.error("Error in loadUptimeDashboard:", err);

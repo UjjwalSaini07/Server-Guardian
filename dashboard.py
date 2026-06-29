@@ -1,5 +1,7 @@
 import os
 import threading
+import asyncio
+from typing import Optional
 from datetime import datetime, timedelta, timezone
 from fastapi import FastAPI, HTTPException, BackgroundTasks, Query
 from fastapi.responses import HTMLResponse
@@ -204,20 +206,25 @@ def get_logs():
     return logs
 
 @app.post("/api/ping/{service_name}")
-def trigger_ping(service_name: str, background_tasks: BackgroundTasks):
+async def trigger_ping(service_name: str):
     """Force run a ping or scraper job immediately in the background."""
     service = next((s for s in SERVICES_CONFIG if s["name"] == service_name), None)
     if not service:
         raise HTTPException(status_code=404, detail="Service not found")
         
     if service["type"] == "pinger":
-        # Run immediately in a FastAPI background task
-        background_tasks.add_task(execute_ping, service, mongo_client)
+        # Start async monitor run in background
+        async def run_pinger_bg():
+            import httpx
+            async with httpx.AsyncClient(verify=False) as client:
+                from services.async_monitoring_service import monitor_service
+                await monitor_service(service, client, mongo_client)
+        asyncio.create_task(run_pinger_bg())
         return {"status": "TRIGGERED", "message": f"Ping scheduled for {service_name}"}
         
     elif service["type"] == "scraper":
-        # Run scraper in a background thread
-        threading.Thread(target=run_scraper, args=(service, mongo_client)).start()
+        # Run scraper in background thread
+        asyncio.create_task(asyncio.to_thread(run_scraper, service, mongo_client))
         return {"status": "TRIGGERED", "message": f"Scraping started in background for {service_name}"}
 
 @app.get("/api/github-actions/status")
@@ -911,5 +918,104 @@ def report_benchmarks():
     try:
         from services.report_service import generate_benchmarks
         return generate_benchmarks(mongo_client)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+# ===========================================================================
+# Observability Extension APIs (Phase 4)
+# ===========================================================================
+
+@app.get("/api/analytics/performance")
+def api_performance_analytics(service_id: Optional[str] = None):
+    """
+    Expose advanced performance analytics rolling averages, percentiles,
+    and anomaly detection.
+    """
+    try:
+        from services.analytics_service import get_performance_analytics
+        if service_id:
+            return get_performance_analytics(service_id, mongo_client)
+        else:
+            results = {}
+            for s in SERVICES_CONFIG:
+                sid = s.get("service_id")
+                if sid:
+                    results[sid] = get_performance_analytics(sid, mongo_client)
+            return results
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+@app.get("/api/analytics/reliability")
+def api_reliability_analytics(service_id: Optional[str] = None):
+    """
+    Expose AI-driven reliability scores, risk tiers, and predicted failure windows.
+    """
+    try:
+        from services.reliability_engine import get_platform_reliability, calculate_reliability
+        if service_id:
+            service = next((s for s in SERVICES_CONFIG if s.get("service_id") == service_id), None)
+            if not service:
+                raise HTTPException(status_code=404, detail="Service not found")
+            return calculate_reliability(service_id, service["name"], mongo_client)
+        else:
+            return get_platform_reliability(mongo_client)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+@app.get("/api/timeline")
+def api_timeline_all(limit: int = 50):
+    """
+    Get full chronological monitoring event log.
+    """
+    try:
+        from services.timeline_service import get_all_timeline
+        return get_all_timeline(limit, mongo_client)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+@app.get("/api/timeline/{service_id}")
+def api_timeline_service(service_id: str, limit: int = 50):
+    """
+    Get timeline events for a specific service.
+    """
+    try:
+        from services.timeline_service import get_timeline
+        return get_timeline(service_id, limit, mongo_client)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+@app.get("/api/incidents/root-causes")
+def api_incidents_root_causes():
+    """
+    Get root cause analysis metadata for all incidents.
+    """
+    try:
+        db = mongo_client["ServerAutomation"]
+        incidents = list(db["incidents"].find({"rca": {"$exists": True}}).sort("started_at", -1))
+        # Serialize _id
+        for inc in incidents:
+            inc["_id"] = str(inc["_id"])
+            if "started_at" in inc and isinstance(inc["started_at"], datetime):
+                inc["started_at"] = inc["started_at"].isoformat()
+            if "resolved_at" in inc and isinstance(inc["resolved_at"], datetime):
+                inc["resolved_at"] = inc["resolved_at"].isoformat()
+        return incidents
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+@app.get("/api/monitoring/retries")
+def api_monitoring_retries(service_id: Optional[str] = None, limit: int = 50):
+    """
+    Expose retry logs and statistics.
+    """
+    try:
+        from services.retry_service import get_retry_stats, get_retry_history
+        stats = get_retry_stats(mongo_client)
+        history = get_retry_history(service_id, limit, mongo_client)
+        return {
+            "stats": stats,
+            "history": history
+        }
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))
