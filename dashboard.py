@@ -957,7 +957,12 @@ def api_reliability_analytics(service_id: Optional[str] = None):
             service = next((s for s in SERVICES_CONFIG if s.get("service_id") == service_id), None)
             if not service:
                 raise HTTPException(status_code=404, detail="Service not found")
-            return calculate_reliability(service_id, service["name"], mongo_client)
+            res = calculate_reliability(service_id, service["name"], mongo_client)
+            if "last_calculated" in res and isinstance(res["last_calculated"], datetime):
+                res["last_calculated"] = res["last_calculated"].isoformat()
+            if "_id" in res:
+                res["_id"] = str(res["_id"])
+            return res
         else:
             return get_platform_reliability(mongo_client)
     except Exception as exc:

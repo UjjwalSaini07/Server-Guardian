@@ -246,6 +246,13 @@ def get_platform_reliability(mongo_client) -> Dict[str, Any]:
                 
         avg_score = scores_sum / len(records) if records else 100.0
         
+        # Stringify object IDs and datetimes to allow JSON serialization
+        for r in records:
+            if "_id" in r:
+                r["_id"] = str(r["_id"])
+            if "last_calculated" in r and isinstance(r["last_calculated"], datetime):
+                r["last_calculated"] = r["last_calculated"].isoformat()
+                
         return {
             "average_reliability_score": round(avg_score, 1),
             "most_reliable_service": best_svc or "N/A",

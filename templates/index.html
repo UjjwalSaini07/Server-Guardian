@@ -1968,19 +1968,20 @@
         modalStatus.className = "text-xs font-bold block mt-1 uppercase text-neonOrange";
       }
 
-      // Fetch latest incident for AI analysis if available
+      // Fetch latest incident for AI analysis if available (only if currently failed/degraded)
       const aiContainer = document.getElementById('modal-ai-analysis-container');
       const aiText = document.getElementById('modal-ai-analysis');
       if (aiContainer && aiText) {
         aiContainer.classList.add('hidden');
-        if (server.service_id) {
+        const isFailed = (normStatus !== 'SUCCESS' && normStatus !== 'OK' && normStatus !== 'SKIPPED' && normStatus !== 'PENDING');
+        if (server.service_id && isFailed) {
           fetch(`/api/incidents?service_id=${server.service_id}&limit=1`)
             .then(res => res.json())
             .then(incidents => {
               if (incidents && incidents.length > 0 && incidents[0].ai_analysis) {
                 aiText.textContent = incidents[0].ai_analysis;
                 aiContainer.classList.remove('hidden');
-              } else if (normStatus !== 'SUCCESS' && normStatus !== 'OK' && normStatus !== 'SKIPPED' && normStatus !== 'PENDING') {
+              } else {
                 // If it is down but has no pre-saved AI analysis, trigger on-demand diagnostics
                 aiText.textContent = "Running AI root cause diagnostics...";
                 aiContainer.classList.remove('hidden');

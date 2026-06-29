@@ -33,6 +33,51 @@ async def monitor_service(service: dict, client: httpx.AsyncClient, mongo_client
     col_name = service.get("collection_name", "health_logs")
     parse_analytics = service.get("parse_analytics", False)
 
+    # 0. Check for empty or missing URL configuration
+    if not url:
+        logger.error(f"[AsyncMonitor] Service {name} is enabled but has no URL configured!")
+        now = datetime.now(timezone.utc)
+        status_data = {
+            "name": name,
+            "type": "pinger",
+            "url": "",
+            "status": "ERROR",
+            "status_code": None,
+            "latency_ms": 0,
+            "last_checked": now,
+            "db_ok": False,
+            "redis_ok": False,
+            "error": "Configuration Error: Service URL is empty or not defined. Please configure it in your environment variables or GitHub repository secrets.",
+            "retry_count": 0,
+            "retry_status": "none",
+            "final_failure": True,
+            "recovery_attempt": False
+        }
+        history_data = {
+            "service_id": service_id,
+            "service_name": name,
+            "timestamp": now,
+            "status": "failure",
+            "status_code": None,
+            "latency_ms": 0,
+            "failure_reason": status_data["error"],
+            "monitor_version": MONITOR_VERSION,
+            "rca": {
+                "failure_type": "UNKNOWN_FAILURE",
+                "severity": "critical",
+                "confidence_score": 100,
+                "recommended_action": "Add the NEXORA_SERVER_URL variable to your local .env file or GitHub repository secrets.",
+                "technical_summary": "Service is enabled but the connection URL is empty."
+            }
+        }
+        try:
+            sa_db = mongo_client["ServerAutomation"]
+            sa_db["latest_status"].update_one({"name": name}, {"$set": status_data}, upsert=True)
+            sa_db["monitoring_history"].insert_one(history_data)
+        except Exception as e:
+            logger.error(f"[AsyncMonitor] Failed to write missing URL status for {name}: {e}")
+        return status_data
+
     # 1. Active hours schedule gate
     if not is_within_allowed_hours(service.get("allowed_hours_ist"), service.get("allowed_days")):
         logger.info(f"[AsyncMonitor] Skipping ping for {name} (outside active hours/days).")
