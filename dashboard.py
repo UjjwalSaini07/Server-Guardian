@@ -719,6 +719,59 @@ def acknowledge_incident(incident_id: str, acknowledged_by: str = Query("dashboa
         raise HTTPException(status_code=500, detail=str(exc))
 
 
+@app.get("/api/services/{service_id}/diagnose")
+def diagnose_service(service_id: str):
+    """
+    Generate real-time SRE diagnostics for a service using Groq AI.
+    """
+    service = next((s for s in SERVICES_CONFIG if s.get("service_id") == service_id), None)
+    if not service:
+        raise HTTPException(status_code=404, detail="Service not found")
+        
+    groq_api_key = os.getenv("GROQ_API_KEY")
+    if not groq_api_key:
+        return {"status": "error", "message": "GROQ_API_KEY is not configured in .env"}
+        
+    try:
+        db = mongo_client["ServerAutomation"]
+        # Get latest status to find out the current error/failure reason
+        latest = db["latest_status"].find_one({"name": service["name"]})
+        
+        if not latest:
+            return {"status": "error", "message": "No status logs found for this service"}
+            
+        status = latest.get("status", "UNKNOWN")
+        if status == "SUCCESS" or status == "OK":
+            return {"status": "ok", "message": "Service is currently healthy. No diagnostics needed.", "analysis": "Service is healthy."}
+            
+        # Get failure reason
+        failure_reason = latest.get("error") or f"HTTP status code {latest.get('status_code', 'Unknown')}"
+        
+        # Generate diagnostics using groq_service
+        from services.groq_service import generate_groq_analysis
+        analysis = generate_groq_analysis(
+            service_id=service_id,
+            service_name=service["name"],
+            failure_reason=failure_reason,
+            mongo_client=mongo_client
+        )
+        
+        # Save this analysis to the active incident if it exists
+        active_inc = db["incidents"].find_one({
+            "service_id": service_id,
+            "status": {"$in": ["open", "acknowledged"]}
+        })
+        if active_inc:
+            db["incidents"].update_one(
+                {"_id": active_inc["_id"]},
+                {"$set": {"ai_analysis": analysis}}
+            )
+            
+        return {"status": "ok", "analysis": analysis}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"AI Diagnostics failed: {str(e)}")
+
+
 # ===========================================================================
 # Phase 3 — Public Status Page
 # ===========================================================================

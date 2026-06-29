@@ -1896,6 +1896,23 @@
               if (incidents && incidents.length > 0 && incidents[0].ai_analysis) {
                 aiText.textContent = incidents[0].ai_analysis;
                 aiContainer.classList.remove('hidden');
+              } else if (normStatus !== 'SUCCESS' && normStatus !== 'OK' && normStatus !== 'SKIPPED' && normStatus !== 'PENDING') {
+                // If it is down but has no pre-saved AI analysis, trigger on-demand diagnostics
+                aiText.textContent = "Running AI root cause diagnostics...";
+                aiContainer.classList.remove('hidden');
+                fetch(`/api/services/${server.service_id}/diagnose`)
+                  .then(res => res.json())
+                  .then(data => {
+                    if (data.status === 'ok' && data.analysis) {
+                      aiText.textContent = data.analysis;
+                    } else {
+                      aiText.textContent = data.message || "Failed to generate AI analysis.";
+                    }
+                  })
+                  .catch(err => {
+                    aiText.textContent = "AI Diagnostics failed to connect.";
+                    console.error(err);
+                  });
               }
             })
             .catch(err => console.error("Error fetching AI diagnostics:", err));
